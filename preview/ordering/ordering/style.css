@@ -31,6 +31,9 @@
 
 * { box-sizing: border-box; }
 
+/* [hidden] 必须始终优先于组件自身的 display，否则隐藏的抽屉/浮层会拦截点击 */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
