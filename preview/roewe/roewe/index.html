@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>荣威RX5 · 控车</title>
+<style>
+:root{
+  --bg:#f5f3ee;
+  --surface:#ffffff;
+  --surface-2:#fbfaf6;
+  --ink:#23231f;
+  --ink-2:#6d6a61;
+  --ink-3:#a09c90;
+  --line:#e9e5db;
+  --green:#2e7d5b;
+  --green-soft:#e9f2ed;
+  --clay:#b4643f;
+  --clay-soft:#f7ece5;
+  --gold:#a8842f;
+  --gold-soft:#f6f0e0;
+  --radius:16px;
+  --radius-sm:12px;
+  --shadow:0 1px 2px rgba(35,35,31,.04),0 8px 20px rgba(35,35,31,.05);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  background:#e8e6e0;
+  color:var(--ink);
+  display:flex;justify-content:center;align-items:center;
+  min-height:100%;
+  font-size:14px;
+  line-height:1.45;
+}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+
+/* ---------- phone frame (centers the fixed 390x844 stage) ---------- */
+.phone{
+  position:relative;
+  width:390px;height:844px;
+  background:var(--bg);
+  overflow:hidden;
+  display:flex;flex-direction:column;
+}
+@media (min-width:480px) and (min-height:900px){
+  .phone{border-radius:34px;box-shadow:0 24px 60px rgba(35,35,31,.18)}
+}
+
+/* ---------- status bar ---------- */
+.statusbar{
+  flex:0 0 auto;
+  height:44px;padding:0 22px 0 26px;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:13px;font-weight:600;letter-spacing:.2px;color:var(--ink);
+}
+.statusbar .icons{display:flex;align-items:center;gap:6px}
+.statusbar svg{display:block}
+
+/* ---------- scroll body ---------- */
+.screen{
+  flex:1 1 auto;min-height:0;
+  overflow-y:auto;overflow-x:hidden;
+  padding:2px 16px 20px;
+  scrollbar-width:none;
+}
+.screen::-webkit-scrollbar{display:none}
+
+/* ---------- shared card ---------- */
+.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+
+/* ---------- 顶部车辆卡片 ---------- */
+.vehicle{
+  position:relative;overflow:hidden;
+  padding:16px 16px 14px;
+  background:linear-gradient(160deg,#ffffff 0%,#faf8f3 100%);
+  margin-bottom:14px;
+}
+/* 国潮回纹 (meander) watermark */
+.vehicle::after{
+  content:"";position:absolute;right:-6px;top:14px;width:118px;height:98px;
+  opacity:.5;pointer-events:none;
+  background-repeat:no-repeat;background-size:118px 98px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='118' height='98' viewBox='0 0 118 98'><g fill='none' stroke='%232e7d5b' stroke-width='2.4' stroke-linecap='square' opacity='.22'><path d='M12 88V12h60v60H32V36h28v36'/><path d='M84 88V40h22v48'/><circle cx='100' cy='22' r='9'/></g></svg>");
+}
+.vehicle-head{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.vehicle-model{font-size:20px;font-weight:700;letter-spacing:.5px;margin:0}
+.vehicle-sub{margin:4px 0 0;font-size:12px;color:var(--ink-2);letter-spacing:.3px}
+.vehicle-plate{
+  flex:0 0 auto;font-size:11px;font-weight:600;letter-spacing:1px;
+  color:var(--green);background:var(--green-soft);
+  border:1px solid #cfe3d8;border-radius:8px;padding:4px 8px;
+}
+.vehicle-art{
+  position:relative;z-index:1;
+  margin:12px 0 6px;height:74px;
+  display:flex;align-items:center;justify-content:center;
+}
+.vehicle-art svg{width:262px;height:auto;display:block}
+.metrics{
+  position:relative;z-index:1;
+  display:grid;grid-template-columns:repeat(3,1fr);
+  border-top:1px solid var(--line);margin-top:6px;padding-top:12px;
+}
+.metric{text-align:center;position:relative}
+.metric+.metric::before{
+  content:"";position:absolute;left:0;top:2px;bottom:2px;width:1px;background:var(--line);
+}
+.metric .k{font-size:11px;color:var(--ink-3);letter-spacing:.6px}
+.metric .v{font-size:19px;font-weight:700;margin-top:3px;letter-spacing:.3px;font-variant-numeric:tabular-nums}
+.metric .v small{font-size:11px;font-weight:600;color:var(--ink-2);margin-left:2px}
+.metric .bar{height:3px;border-radius:2px;background:#eceadf;margin:7px 14px 0;overflow:hidden}
+.metric .bar i{display:block;height:100%;border-radius:2px}
+.metric.fuel .bar i{background:var(--clay)}
+.metric.elec .bar i{background:var(--green)}
+
+/* ---------- 快捷按钮区 ---------- */
+.quick{
+  position:relative;overflow:hidden;
+  padding:14px 8px 12px;margin-bottom:14px;
+}
+.quick-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
+.qbtn{
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  padding:4px 0;border-radius:var(--radius-sm);
+  transition:background .18s ease,transform .18s ease;
+}
+.qbtn:active{transform:scale(.94)}
+.qbtn .ico{
+  width:46px;height:46px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface-2);border:1px solid var(--line);
+  color:var(--ink);transition:all .18s ease;
+}
+.qbtn .ico svg{width:24px;height:24px;display:block}
+.qbtn .label{font-size:11px;color:var(--ink-2);letter-spacing:.2px;white-space:nowrap}
+.qbtn.on .ico{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 6px 14px rgba(46,125,91,.22)}
+.qbtn.on .label{color:var(--green);font-weight:600}
+.qbtn.warn.on .ico{background:var(--gold);border-color:var(--gold);box-shadow:0 6px 14px rgba(168,132,47,.22)}
+.qbtn.warn.on .label{color:var(--gold)}
+.toast{
+  margin:8px 6px 0;padding:8px 12px;border-radius:10px;
+  background:var(--surface-2);border:1px solid var(--line);
+  font-size:12px;color:var(--ink-2);text-align:center;
+  transition:color .2s ease,border-color .2s ease;
+}
+.toast.hot{color:var(--green);border-color:#cfe3d8;background:var(--green-soft)}
+
+/* ---------- 状态卡片 ---------- */
+.section-title{
+  display:flex;align-items:baseline;justify-content:space-between;
+  margin:0 2px 8px;
+}
+.section-title h2{font-size:14px;font-weight:700;margin:0;letter-spacing:.4px}
+.section-title span{font-size:11px;color:var(--ink-3)}
+.status-card{padding:14px 14px 6px;margin-bottom:14px}
+.tires{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.tire-col{display:flex;flex-direction:column;gap:8px}
+.tire{
+  width:96px;padding:9px 8px;border-radius:var(--radius-sm);
+  background:var(--surface-2);border:1px solid var(--line);text-align:center;
+}
+.tire .pos{font-size:10px;color:var(--ink-3);letter-spacing:.4px}
+.tire .val{font-size:16px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.tire .val small{font-size:10px;font-weight:600;color:var(--ink-2);margin-left:1px}
+.tire.ok .val{color:var(--green)}
+.tire.low .val{color:var(--clay)}
+.tire.low{background:var(--clay-soft);border-color:#eed9cc}
+.car-top{
+  flex:0 0 auto;width:96px;text-align:center;color:var(--ink-3);
+}
+.car-top svg{width:100%;height:auto;display:block}
+.car-top .cap{font-size:10px;letter-spacing:.4px;margin-top:2px}
+
+.doors{
+  border-top:1px solid var(--line);margin-top:12px;padding:12px 0 8px;
+}
+.doors-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.doors-head .t{font-size:12px;color:var(--ink-2);letter-spacing:.3px}
+.pill{
+  font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;
+  background:var(--green-soft);color:var(--green);border:1px solid #cfe3d8;
+}
+.pill.warn{background:var(--clay-soft);color:var(--clay);border-color:#eed9cc}
+.door-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.door{
+  padding:8px 2px 7px;border-radius:10px;text-align:center;
+  background:var(--surface-2);border:1px solid var(--line);
+}
+.door svg{width:20px;height:20px;display:block;margin:0 auto 5px;color:var(--ink-2)}
+.door .n{font-size:10px;color:var(--ink-2);letter-spacing:.2px;white-space:nowrap}
+.door .s{font-size:10px;font-weight:700;margin-top:2px;color:var(--green)}
+.door.closed .s{color:var(--green)}
+.door.open{background:var(--gold-soft);border-color:#ecdfba}
+.door.open svg{color:var(--gold)}
+.door.open .s{color:var(--gold)}
+
+/* ---------- 底部 tab ---------- */
+.tabbar{
+  flex:0 0 auto;position:relative;
+  background:rgba(255,255,255,.94);
+  backdrop-filter:saturate(160%) blur(8px);
+  border-top:1px solid var(--line);
+  padding:8px 6px calc(6px + env(safe-area-inset-bottom,0px));
+  display:grid;grid-template-columns:repeat(5,1fr);
+}
+.tabbar::before{
+  content:"";position:absolute;left:0;right:0;top:-1px;height:2px;
+  background:linear-gradient(90deg,transparent 0%,rgba(46,125,91,.28) 50%,transparent 100%);
+}
+.tab{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:5px 0 3px;border-radius:10px;color:var(--ink-3);
+  transition:color .18s ease;
+}
+.tab svg{width:22px;height:22px;display:block}
+.tab .n{font-size:10px;letter-spacing:.2px}
+.tab.active{color:var(--green)}
+.tab.active .n{font-weight:700}
+
+/* ---------- placeholder sheet ---------- */
+.sheet{
+  position:absolute;inset:0;z-index:20;
+  background:rgba(35,35,31,.28);
+  display:flex;align-items:flex-end;
+  opacity:0;pointer-events:none;transition:opacity .22s ease;
+}
+.sheet.show{opacity:1;pointer-events:auto}
+.sheet-panel{
+  width:100%;background:var(--bg);
+  border-radius:20px 20px 0 0;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));
+  transform:translateY(18px);transition:transform .24s ease;
+  max-height:74%;overflow-y:auto;
+}
+.sheet.show .sheet-panel{transform:none}
+.sheet-panel h3{margin:0 0 4px;font-size:16px;letter-spacing:.4px}
+.sheet-panel p{margin:0;font-size:12px;color:var(--ink-2)}
+.sheet-panel .ph{
+  margin-top:14px;padding:22px 16px;border-radius:var(--radius);
+  background:var(--surface);border:1px dashed #ddd8cb;text-align:center;
+}
+.sheet-panel .ph .big{font-size:13px;font-weight:600;color:var(--ink-2)}
+.sheet-panel .ph .sm{font-size:11px;color:var(--ink-3);margin-top:6px;letter-spacing:.3px}
+.sheet-close{
+  margin-top:14px;width:100%;padding:12px;border-radius:12px;
+  background:var(--surface);border:1px solid var(--line);
+  font-size:13px;font-weight:600;color:var(--ink-2);
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 首页 ============ -->
+<main class="phone" id="phone">
+
+  <!-- 状态栏 -->
+  <div class="statusbar">
+    <span>9:41</span>
+    <span class="icons">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true"><path d="M8 9.6 5.6 7.2a3.4 3.4 0 0 1 4.8 0L8 9.6Zm0-4.4a6 6 0 0 0-4.3 1.8L2.2 5.5a8.2 8.2 0 0 1 11.6 0l-1.5 1.5A6 6 0 0 0 8 5.2Zm0-3.6a9.5 9.5 0 0 0-6.8 2.8L-.3 2.9a11.7 11.7 0 0 1 16.6 0l-1.5 1.5A9.5 9.5 0 0 0 8 1.6Z"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true"><rect x=".6" y=".6" width="20" height="10.8" rx="3" stroke="currentColor" stroke-opacity=".45"/><rect x="2.2" y="2.2" width="14.4" height="7.6" rx="1.8" fill="currentColor"/><path d="M22.4 4.2v3.6c.9-.3 1.4-.9 1.4-1.8s-.5-1.5-1.4-1.8Z" fill="currentColor" fill-opacity=".45"/></svg>
+    </span>
+  </div>
+
+  <div class="screen">
+
+    <!-- ---------- 顶部车辆卡片 ---------- -->
+    <section class="card vehicle" aria-label="车辆信息">
+      <div class="vehicle-head">
+        <div>
+          <h1 class="vehicle-model">荣威RX5</h1>
+          <p class="vehicle-sub">2026款 1.5T 智能网联版</p>
+        </div>
+        <span class="vehicle-plate">沪A·8X5T6</span>
+      </div>
+
+      <div class="vehicle-art" aria-hidden="true">
+        <svg viewBox="0 0 262 74" fill="none">
+          <!-- 车身剪影 -->
+          <path d="M18 52c-6 0-10-3.6-10-8.4 0-4.4 2.6-7.4 8-8.6l22-4.8 16-14.6c2.6-2.4 5.8-3.6 9.4-3.6h66c4.6 0 8.6 1.6 12.2 5l14.6 13.2 56 6.6c9.6 1.1 15.4 4.8 15.4 11.4 0 3.4-1.2 6-3.6 7.6-2 1.4-4.6 2.2-7.6 2.2H18Z" fill="#2e7d5b" fill-opacity=".07" stroke="#2e7d5b" stroke-opacity=".38" stroke-width="2"/>
+          <path d="M62 15.6h58.4c2.8 0 5.2 1 7.2 3l13.4 12.2H52.6L60 17.6c.6-.8 1.2-1.4 2-2Z" fill="#2e7d5b" fill-opacity=".12" stroke="#2e7d5b" stroke-opacity=".3" stroke-width="1.6"/>
+          <path d="M133 17.5v13.3" stroke="#2e7d5b" stroke-opacity=".3" stroke-width="1.6"/>
+          <path d="M55 31h152" stroke="#2e7d5b" stroke-opacity=".22" stroke-width="1.6"/>
+          <!-- 车轮 -->
+          <circle cx="66" cy="52" r="14" fill="#fff" stroke="#b4643f" stroke-opacity=".55" stroke-width="2.4"/>
+          <circle cx="66" cy="52" r="5" fill="#b4643f" fill-opacity=".45"/>
+          <circle cx="196" cy="52" r="14" fill="#fff" stroke="#b4643f" stroke-opacity=".55" stroke-width="2.4"/>
+          <circle cx="196" cy="52" r="5" fill="#b4643f" fill-opacity=".45"/>
+          <!-- 灯 -->
+          <path d="M20 40h22l-2 6H22c-2.6 0-4-1.2-4-3 0-1.4.7-2.4 2-3Z" fill="#a8842f" fill-opacity=".5"/>
+          <path d="M216 41h20c1.8 0 2.6.8 2.6 2.4s-1 2.6-2.8 2.6h-21.4l1.6-5Z" fill="#b4643f" fill-opacity=".45"/>
+          <!-- 地平线 -->
+          <path d="M4 69h254" stroke="#2e7d5b" stroke-opacity=".16" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="metrics">
+        <div class="metric fuel">
+          <div class="k">油量</div>
+          <div class="v">62<small>%</small></div>
+          <div class="bar"><i style="width:62%"></i></div>
+        </div>
+        <div class="metric elec">
+          <div class="k">电量</div>
+          <div class="v">78<small>%</small></div>
+          <div class="bar"><i style="width:78%"></i></div>
+        </div>
+        <div class="metric">
+          <div class="k">总里程</div>
+          <div class="v">12,340<small>km</small></div>
+          <div class="bar"><i style="width:100%;background:#dcd8cc"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 快捷按钮区 ---------- -->
+    <section class="card quick" aria-label="快捷控制">
+      <div class="quick-grid">
+        <button class="qbtn" data-action="unlock" data-label="解锁" data-state-on="已解锁" data-state-off="已闭锁" aria-pressed="false">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="9.5" rx="2.4"/><path d="M8 10.5V7.6a4 4 0 0 1 7.7-1.5"/></svg>
+          </span>
+          <span class="label">解锁</span>
+        </button>
+        <button class="qbtn" data-action="lock" data-label="闭锁" data-state-on="已闭锁" data-state-off="已解锁" aria-pressed="false">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="9.5" rx="2.4"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><path d="M12 14.4v2.2"/></svg>
+          </span>
+          <span class="label">闭锁</span>
+        </button>
+        <button class="qbtn warn" data-action="find" data-label="寻车" data-state-on="鸣笛闪灯中" data-state-off="已停止" aria-pressed="false">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.5v-3l1.8-4.2A2.4 2.4 0 0 1 8 5.8h8a2.4 2.4 0 0 1 2.2 1.5L20 11.5v3"/><path d="M4 11.5h16"/><circle cx="7.6" cy="17" r="1.7"/><circle cx="16.4" cy="17" r="1.7"/><path d="M12 3.2v3.6M10.2 4.2h3.6"/></svg>
+          </span>
+          <span class="label">寻车</span>
+        </button>
+        <button class="qbtn" data-action="ac" data-label="空调" data-state-on="空调开启" data-state-off="空调关闭" aria-pressed="false">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5 4.2 16.5"/><path d="M12 6.6 9.8 4.8M12 6.6l2.2-1.8M12 17.4l2.2 1.8M12 17.4l-2.2 1.8"/></svg>
+          </span>
+          <span class="label">空调</span>
+        </button>
+        <button class="qbtn warn" data-action="trunk" data-label="后备箱" data-state-on="后备箱已开" data-state-off="后备箱已关" aria-pressed="false">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="9" width="16.8" height="9.4" rx="2.2"/><path d="M7 9V6.6A2 2 0 0 1 9 4.6h6a2 2 0 0 1 2 2V9"/><path d="M12 11.6v3.4M10.6 13h2.8"/></svg>
+          </span>
+          <span class="label">后备箱</span>
+        </button>
+      </div>
+      <p class="toast" id="toast">车辆已闭锁 · 一切正常</p>
+    </section>
+
+    <!-- ---------- 胎压状态 ---------- -->
+    <h2 class="section-title"><span style="font-size:14px;font-weight:700;letter-spacing:.4px">胎压状态</span><span>标准 230–250 kPa</span></h2>
+    <section class="card status-card" aria-label="胎压状态">
+      <div class="tires">
+        <div class="tire-col">
+          <div class="tire ok"><div class="pos">左前</div><div class="val">238<small>kPa</small></div></div>
+          <div class="tire ok"><div class="pos">左后</div><div class="val">241<small>kPa</small></div></div>
+        </div>
+        <div class="car-top" aria-hidden="true">
+          <svg viewBox="0 0 96 132" fill="none">
+            <rect x="14" y="30" width="68" height="72" rx="22" fill="#2e7d5b" fill-opacity=".06" stroke="#2e7d5b" stroke-opacity=".32" stroke-width="2"/>
+            <path d="M22 44h52v22H22z" fill="#2e7d5b" fill-opacity=".1" stroke="#2e7d5b" stroke-opacity=".24" stroke-width="1.6"/>
+            <path d="M30 12h36c4 0 7 3 7 7v8H23v-8c0-4 3-7 7-7Z" fill="#a8842f" fill-opacity=".12" stroke="#a8842f" stroke-opacity=".32" stroke-width="1.6"/>
+            <rect x="4" y="40" width="9" height="17" rx="4" fill="#b4643f" fill-opacity=".18" stroke="#b4643f" stroke-opacity=".4" stroke-width="1.6"/>
+            <rect x="83" y="40" width="9" height="17" rx="4" fill="#b4643f" fill-opacity=".18" stroke="#b4643f" stroke-opacity=".4" stroke-width="1.6"/>
+            <rect x="4" y="77" width="9" height="17" rx="4" fill="#b4643f" fill-opacity=".18" stroke="#b4643f" stroke-opacity=".4" stroke-width="1.6"/>
+            <rect x="83" y="77" width="9" height="17" rx="4" fill="#b4643f" fill-opacity=".18" stroke="#b4643f" stroke-opacity=".4" stroke-width="1.6"/>
+            <path d="M14 122h68" stroke="#2e7d5b" stroke-opacity=".22" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div class="cap">俯视图</div>
+        </div>
+        <div class="tire-col">
+          <div class="tire ok"><div class="pos">右前</div><div class="val">236<small>kPa</small></div></div>
+          <div class="tire low"><div class="pos">右后</div><div class="val">214<small>kPa</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 车辆门窗状态 ---------- -->
+    <h2 class="section-title"><span style="font-size:14px;font-weight:700;letter-spacing:.4px">车辆门窗</span><span>4 门 + 后备箱</span></h2>
+    <section class="card status-card" aria-label="车辆门窗状态">
+      <div class="doors">
+        <div class="doors-head">
+          <span class="t">所有车门已关闭</span>
+          <span class="pill" id="doorPill">已上锁</span>
+        </div>
+        <div class="door-grid">
+          <div class="door closed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h7.5l6 6V21H5z"/><path d="M12.5 3.5v6h6"/><path d="M8.6 14.6h1.2"/></svg><div class="n">左前门</div><div class="s">已关</div></div>
+          <div class="door closed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h7.5l6 6V21H5z"/><path d="M12.5 3.5v6h6"/><path d="M8.6 14.6h1.2"/></svg><div class="n">右前门</div><div class="s">已关</div></div>
+          <div class="door closed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h7.5l6 6V21H5z"/><path d="M12.5 3.5v6h6"/><path d="M8.6 14.6h1.2"/></svg><div class="n">左后门</div><div class="s">已关</div></div>
+          <div class="door closed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h7.5l6 6V21H5z"/><path d="M12.5 3.5v6h6"/><path d="M8.6 14.6h1.2"/></svg><div class="n">右后门</div><div class="s">已关</div></div>
+          <div class="door closed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="8" width="16.8" height="10.4" rx="2.2"/><path d="M7 8V5.8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2V8"/><path d="M12 11v4"/></svg><div class="n">后备箱</div><div class="s">已关</div></div>
+        </div>
+      </div>
+    </section>
+
+    <p style="text-align:center;font-size:10px;color:var(--ink-3);margin:2px 0 4px;letter-spacing:.3px">模拟数据 · 仅用于首页样式预览</p>
+  </div>
+
+  <!-- ---------- 底部 tab ---------- -->
+  <nav class="tabbar" aria-label="主导航">
+    <button class="tab active" data-tab="home" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 10.4 12 3.8l8.4 6.6V20a1 1 0 0 1-1 1h-4.6v-6.2H9.2V21H4.6a1 1 0 0 1-1-1v-9.6Z"/></svg>
+      <span class="n">首页</span>
+    </button>
+    <button class="tab" data-tab="key">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.6" cy="8.6" r="4.6"/><path d="M11.9 11.9 20 20M17 17l-1.8 1.8M19.4 19.4l-1.6 1.6"/></svg>
+      <span class="n">钥匙</span>
+    </button>
+    <button class="tab" data-tab="trip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18.6V13l2.4-5.4A2.6 2.6 0 0 1 8.8 6h6.4a2.6 2.6 0 0 1 2.4 1.6L20 13v5.6"/><path d="M4 13h16"/><circle cx="7.6" cy="17.4" r="1.6"/><circle cx="16.4" cy="17.4" r="1.6"/></svg>
+      <span class="n">行程</span>
+    </button>
+    <button class="tab" data-tab="service">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4 20 7v6.2c0 4.2-3.2 6.9-8 8.4-4.8-1.5-8-4.2-8-8.4V7l8-3.6Z"/><path d="m8.8 12.2 2.2 2.2 4.2-4.4"/></svg>
+      <span class="n">服务</span>
+    </button>
+    <button class="tab" data-tab="mine">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.4" r="4"/><path d="M4.4 20.2c.6-3.7 3.7-6 7.6-6s7 2.3 7.6 6"/></svg>
+      <span class="n">我的</span>
+    </button>
+  </nav>
+
+  <!-- ---------- 占位页 ---------- -->
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+    <div class="sheet-panel">
+      <h3 id="sheetTitle">钥匙</h3>
+      <p id="sheetDesc">该模块将在后续工单中实现。</p>
+      <div class="ph">
+        <div class="big" id="sheetPh">钥匙 · 占位页</div>
+        <div class="sm">本步仅实现首页，其余 tab 暂为占位</div>
+      </div>
+      <button class="sheet-close" id="sheetClose">返回首页</button>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- 数据 ---------- */
+  var TAB_INFO = {
+    home:    null,
+    key:     {title:'钥匙',   desc:'数字钥匙、蓝牙钥匙与授权分享。'},
+    trip:    {title:'行程',   desc:'历史行程、能耗统计与驾驶评分。'},
+    service: {title:'服务',   desc:'保养预约、道路救援与车况报告。'},
+    mine:    {title:'我的',   desc:'账号、车辆绑定与偏好设置。'}
+  };
+
+  var tabs   = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var qbtns  = Array.prototype.slice.call(document.querySelectorAll('.qbtn'));
+  var sheet  = document.getElementById('sheet');
+  var toast  = document.getElementById('toast');
+  var toastTimer = null;
+  var lastFocus = null;
+
+  /* ---------- 提示条 ---------- */
+  function showToast(text, hot){
+    toast.textContent = text;
+    toast.classList.toggle('hot', !!hot);
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){
+      toast.classList.toggle('hot', false);
+    }, 2600);
+  }
+
+  /* ---------- 快捷按钮 ---------- */
+  qbtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var on = btn.getAttribute('aria-pressed') !== 'true';
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.classList.toggle('on', on);
+      var label = btn.getAttribute('data-label');
+      showToast(label + '：' + btn.getAttribute(on ? 'data-state-on' : 'data-state-off'), on);
+      if (btn.getAttribute('data-action') === 'lock' && on) syncDoorPill('已上锁');
+      if (btn.getAttribute('data-action') === 'unlock' && on) syncDoorPill('已解锁');
+    });
+  });
+
+  function syncDoorPill(text){
+    var pill = document.getElementById('doorPill');
+    var warn = text === '已解锁';
+    pill.textContent = text;
+    pill.classList.toggle('warn', warn);
+  }
+
+  /* ---------- 底部 tab ---------- */
+  function openSheet(key){
+    var info = TAB_INFO[key];
+    if (!info) return;
+    lastFocus = document.activeElement;
+    document.getElementById('sheetTitle').textContent = info.title;
+    document.getElementById('sheetDesc').textContent = info.desc;
+    document.getElementById('sheetPh').textContent = info.title + ' · 占位页';
+    sheet.hidden = false;
+    requestAnimationFrame(function(){ sheet.classList.add('show'); });
+    document.getElementById('sheetClose').focus();
+  }
+
+  function closeSheet(){
+    sheet.classList.remove('show');
+    var done = function(){ sheet.hidden = true; };
+    var t = setTimeout(done, 240);
+    sheet.addEventListener('transitionend', function h(){
+      clearTimeout(t); sheet.removeEventListener('transitionend', h); done();
+    });
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      tabs.forEach(function(t){
+        t.classList.remove('active');
+        t.removeAttribute('aria-current');
+      });
+      tab.classList.add('active');
+      tab.setAttribute('aria-current', 'page');
+      var key = tab.getAttribute('data-tab');
+      if (key === 'home'){
+        closeSheet();
+      } else {
+        openSheet(key);
+      }
+    });
+  });
+
+  document.getElementById('sheetClose').addEventListener('click', function(){
+    closeSheet();
+    tabs.forEach(function(t){
+      var home = t.getAttribute('data-tab') === 'home';
+      t.classList.toggle('active', home);
+      if (home) t.setAttribute('aria-current','page'); else t.removeAttribute('aria-current');
+    });
+  });
+
+  sheet.addEventListener('click', function(e){ if (e.target === sheet) closeSheet(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && !sheet.hidden) closeSheet();
+  });
+})();
+</script>
+</body>
+</html>

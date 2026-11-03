@@ -14,7 +14,7 @@ ul{margin:8px 0 0;padding-left:18px;color:#6b675c;font-size:12px}
 .t{font-size:15px;font-weight:600;margin-bottom:6px}
 </style></head><body>
 <h1>Super-agent 工单预览</h1>
-<div class="sub">数据每 2 分钟自动同步 · 本页 <span id="cd">30</span> 秒后自动刷新</div>
+<div class="sub">worker 模型：DeepSeek-V4.1-Flash @ DeepInfra · 数据每次访问时读取 status.json · 本页 <span id="cd">30</span> 秒后自动刷新</div>
 <div id="cards">加载中…</div>
 <script>
 fetch('./status.json?ts='+Date.now()).then(r=>r.json()).then(d=>{
