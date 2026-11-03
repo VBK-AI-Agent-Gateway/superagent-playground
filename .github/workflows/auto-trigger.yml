@@ -7,7 +7,9 @@ jobs:
   mention:
     runs-on: ubuntu-latest
     steps:
-      - name: mention agent
-        run: gh issue comment 4 --body "@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）" --repo VBK-AI-Agent-Gateway/superagent-playground
+      - name: instruct workers
+        run: |
+          gh issue comment 3 --body '@VBK-AI-Agent-Gateway 操作员指示：忽略 preview/ 目录与远端 main 的额外提交（那是预览同步机制的产物，与本任务无关）。立即在当前 worktree 创建任务代码文件（HTML/CSS/JS）并按交付要求提交。不要再做仓库状态调查。' --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 4 --body '@VBK-AI-Agent-Gateway 操作员指示：忽略 preview/ 目录与远端 main 的额外提交（那是预览同步机制的产物，与本任务无关）。立即在当前 worktree 创建任务代码文件（HTML/CSS/JS）并按交付要求提交。不要再做仓库状态调查。' --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
