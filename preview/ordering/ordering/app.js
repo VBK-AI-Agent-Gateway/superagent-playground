@@ -456,7 +456,8 @@
 
   /* ---------- 事件（委托） ---------- */
   function handleClick(e) {
-    var t = e.target.closest('[data-act], .tab');
+    var node = e.target;
+    var t = node.closest ? node.closest('[data-act], .tab') : null;
     if (!t) return;
 
     if (t.classList.contains('tab')) {
