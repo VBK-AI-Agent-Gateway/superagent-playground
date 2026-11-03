@@ -6,26 +6,12 @@ body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-se
 h1{font-size:22px;font-weight:600;margin:0 0 4px}
 .sub{color:#8a877e;font-size:13px;margin-bottom:24px}
 .card{background:#fff;border:1px solid #e5e1d8;border-radius:12px;padding:18px 20px;margin-bottom:16px;max-width:560px}
-.badge{display:inline-block;font-size:12px;padding:2px 10px;border-radius:999px;margin-right:8px}
-.ok{background:#e8f3ee;color:#2e7d5b}.wait{background:#f6efe4;color:#a06a2c}
 a.btn{display:inline-block;margin-top:10px;background:#2e7d5b;color:#fff;text-decoration:none;padding:8px 18px;border-radius:8px;font-size:14px}
-a.btn.dis{background:#c9c5ba;pointer-events:none}
-ul{margin:8px 0 0;padding-left:18px;color:#6b675c;font-size:12px}
 .t{font-size:15px;font-weight:600;margin-bottom:6px}
 </style></head><body>
 <h1>Super-agent 工单预览</h1>
-<div class="sub">worker 模型：DeepSeek-V4.1-Flash @ DeepInfra · 数据每次访问时读取 status.json · 本页 <span id="cd">30</span> 秒后自动刷新</div>
-<div id="cards">加载中…</div>
-<script>
-fetch('./status.json?ts='+Date.now()).then(r=>r.json()).then(d=>{
-  const el=document.getElementById('cards');
-  el.innerHTML = d.tasks.map(t=>{
-    const ready=t.htmlCount>0;
-    const link=ready?`<a class="btn" href="./${t.url}/${t.entry||''}">打开成品</a>`:`<a class="btn dis">等待 worker 产出…</a>`;
-    const st=ready?`<span class="badge ok">已产出 ${t.htmlCount} 个页面</span>`:`<span class="badge wait">开发中</span>`;
-    const files=t.files&&t.files.length?`<ul>${t.files.slice(0,8).map(f=>`<li>${f}</li>`).join('')}</ul>`:'';
-    return `<div class="card"><div class="t">${t.name}</div>${st}${link}${files}</div>`;
-  }).join('') + `<div class="sub">同步时间：${d.time}</div>`;
-});
-setInterval(()=>{const c=document.getElementById('cd');c.textContent=Math.max(0,+c.textContent-1);if(+c.textContent===0)location.reload();},1000);
-</script></body></html>
+<div class="sub">worker 模型：DeepSeek-V4.1-Flash · 由 superagent 双工单并行交付</div>
+<div class="card"><div class="t">中餐点餐系统（第一版）</div><a class="btn" href="./apps/ordering/index.html">打开点餐系统</a></div>
+<div class="card"><div class="t">荣威RX5控车APP首页</div><a class="btn" href="./apps/roewe/index.html">打开荣威首页</a></div>
+<div class="sub">由 dsh-superagent 自动交付 · issue #5 / #6</div>
+</body></html>

@@ -1,1 +1,1 @@
-{"time": "2026-11-03 19:59:15", "tasks": [{"name": "中餐点餐系统", "url": "apps/ordering", "htmlCount": 1, "entry": "ordering/index.html", "size": 6674, "files": ["README.md", "ordering/README.md", "ordering/app.js", "ordering/index.html", "ordering/style.css"]}, {"name": "荣威RX5控车APP首页", "url": "apps/roewe", "htmlCount": 1, "entry": "preview/index.html", "size": 29854, "files": ["README.md", "roewe/index.html"]}], "sync": "cron disabled; manual/rerun"}
+{"time": "2026-11-03 20:04:52", "apps": {"ordering": "apps/ordering/index.html", "roewe": "apps/roewe/index.html"}}
