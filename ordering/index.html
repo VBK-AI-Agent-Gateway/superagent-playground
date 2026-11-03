@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="蜀香居 · 中餐点餐单页应用（第一版）">
+<title>蜀香居 · 中餐点餐</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand">
+      <span class="seal" aria-hidden="true">蜀</span>
+      <span class="brand-text">
+        <strong class="brand-name">蜀香居</strong>
+        <span class="brand-sub">中餐点餐 · 第一版</span>
+      </span>
+    </div>
+    <button type="button" class="cart-btn" id="cartBtn" data-act="cart" aria-label="查看购物车" aria-haspopup="dialog">
+      <span aria-hidden="true">🛒</span>
+      <span class="cart-btn-label">购物车</span>
+      <span class="cart-count" id="cartCount">0</span>
+    </button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="菜品分类"></nav>
+
+<main class="wrap">
+
+  <!-- ============ 菜单 ============ -->
+  <section id="viewMenu" class="view">
+    <div class="menu-head">
+      <h2 id="catTitle">凉菜</h2>
+      <p class="menu-hint" id="catHint"></p>
+    </div>
+
+    <!-- 空态：当前分类无可点菜品（正常情况下不会出现） -->
+    <p class="empty" id="menuEmpty" hidden>该分类暂时没有菜品，看看其他分类吧。</p>
+
+    <!-- 兜底：菜单由 app.js 动态渲染 -->
+    <div class="grid" id="dishGrid"></div>
+  </section>
+
+  <!-- ============ 确认订单 ============ -->
+  <section id="viewCheckout" class="view" hidden>
+    <button type="button" class="back-btn" data-act="back">← 返回点餐</button>
+
+    <div class="panel">
+      <h2 class="panel-title">确认订单</h2>
+      <p class="panel-summary" id="checkoutSummary"></p>
+
+      <div class="field">
+        <span class="field-label" id="tableLabel">选择桌台</span>
+        <div class="table-grid" id="tableGrid" role="radiogroup" aria-labelledby="tableLabel"></div>
+      </div>
+
+      <button type="button" class="primary-btn" id="submitBtn" data-act="submit">
+        提交订单
+      </button>
+      <p class="pay-note">第一版为演示环境，提交后不产生真实订单与费用。</p>
+    </div>
+  </section>
+
+  <!-- ============ 订单确认（下单成功） ============ -->
+  <section id="viewConfirm" class="view" hidden>
+    <div class="panel confirm-panel">
+      <div class="stamp" aria-hidden="true">已下单</div>
+      <h2 class="panel-title">下单成功</h2>
+
+      <dl class="confirm-meta">
+        <div>
+          <dt>订单号</dt>
+          <dd class="order-no" id="orderNo">—</dd>
+        </div>
+        <div>
+          <dt>桌台</dt>
+          <dd id="confirmTable">—</dd>
+        </div>
+        <div>
+          <dt>预计出餐</dt>
+          <dd class="eta">约 15 分钟</dd>
+        </div>
+        <div>
+          <dt>下单时间</dt>
+          <dd id="orderTime">—</dd>
+        </div>
+      </dl>
+
+      <h3 class="sub-title">订单明细</h3>
+      <ul class="order-list" id="orderList"></ul>
+
+      <div class="confirm-total">
+        <span>合计</span>
+        <span class="total-amount" id="orderTotal">¥0</span>
+      </div>
+
+      <p class="confirm-tip">已通知后厨，请稍候。菜品将按顺序陆续上桌。</p>
+
+      <button type="button" class="primary-btn" data-act="neworder">
+        再来一单
+      </button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>蜀香居 点餐演示 · 纯前端单页应用（HTML / CSS / JS，无后端）</p>
+  </div>
+</footer>
+
+<!-- ============ 购物车 ============ -->
+<div class="drawer-overlay" id="overlay" hidden></div>
+
+<aside class="cart-drawer" id="cartDrawer" aria-labelledby="cartTitle" aria-hidden="true" hidden>
+  <div class="drawer-head">
+    <h2 class="panel-title" id="cartTitle">购物车</h2>
+    <button type="button" class="icon-btn" id="closeCart" data-act="closeCart" aria-label="关闭购物车">✕</button>
+  </div>
+
+  <div class="drawer-body">
+    <p class="empty" id="cartEmpty">购物车还是空的，先去点几道菜吧。</p>
+    <ul class="cart-list" id="cartList"></ul>
+  </div>
+
+  <div class="drawer-foot">
+    <div class="sum-row total-row">
+      <span>合计</span>
+      <span class="total-amount" id="cartTotal">¥0</span>
+    </div>
+    <button type="button" class="primary-btn" id="goCheckout" data-act="checkout">
+      去下单
+    </button>
+  </div>
+</aside>
+
+<script src="app.js"></script>
+</body>
+</html>
