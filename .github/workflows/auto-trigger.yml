@@ -1,0 +1,13 @@
+name: auto-trigger
+on:
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  mention:
+    runs-on: ubuntu-latest
+    steps:
+      - name: mention agent
+        run: gh issue comment 1 --body "@VBK-AI-Agent-Gateway 执行（bot 代发）" --repo VBK-AI-Agent-Gateway/superagent-playground
+        env:
+          GH_TOKEN: ${{ github.token }}
