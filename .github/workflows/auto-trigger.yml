@@ -8,6 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: mention agent
-        run: gh issue comment 1 --body "@VBK-AI-Agent-Gateway 执行（bot 代发）" --repo VBK-AI-Agent-Gateway/superagent-playground
+        run: gh issue comment 3 --body "@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
