@@ -9,7 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 5 --body '@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）。模型已升级为 DeepSeek-V4.1-Flash。忽略 preview/ 目录，直接开始写代码。' --repo VBK-AI-Agent-Gateway/superagent-playground
-          gh issue comment 6 --body '@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）。模型已升级为 DeepSeek-V4.1-Flash。忽略 preview/ 目录，直接开始写代码。' --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 9 --body "@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）。这是全新完整项目：荣威RX5网页版车机系统（完整座舱），按 issue 规格交付到仓库根下新目录 roewe-cockpit/。忽略 preview/ 与其他既有目录，直接开始写代码。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
