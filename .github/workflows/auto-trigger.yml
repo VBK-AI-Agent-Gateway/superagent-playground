@@ -9,6 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 15 --body "@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）。交付物为 eu-fix/ 目录下的运维修复脚本包（6 个 sh + README），按 issue 现场信息精确编写，默认 dry-run、--apply 才生效。忽略 preview/ 与其他既有目录，直接开始写脚本。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 15 --body "@VBK-AI-Agent-Gateway 收口指令（操作员）：eu-fix/ 的 6 个脚本与 lib 已足够，立即停止打磨与补充测试。现在只做：(1) 已写完的 README 一并交付（未写完则跳过）；(2) commit、push、开 PR；(3) orchestrator_report 交付。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
