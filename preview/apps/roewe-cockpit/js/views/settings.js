@@ -1,192 +1,311 @@
 /*!
- * 系统设置模块
- * 规格：亮度、主题、WiFi、蓝牙、OTA 版本、关于
- * 另承载「行车状态模拟器」：D/P 挡切换 + 车速滑块（交付验证依赖它）
+ * js/views/settings.js — 模块 8：设置
+ * 亮度、主题、WiFi、蓝牙、OTA 版本与关于信息；同时提供驾驶状态模拟器入口。
  */
 (function (global) {
   'use strict';
 
-  var THEMES = [
-    { key: 'dark', label: '深色模式', desc: '夜间行车默认' },
-    { key: 'light', label: '浅色模式', desc: '日间强光更清晰' }
-  ];
-
-  global.SettingsView = {
-    name: 'SettingsView',
-    inject: ['ctx'],
-    data: function () {
-      return { themes: THEMES, otaBusy: false, otaDone: false };
-    },
+  var settings = {
+    data: function () { return { S: global.CockpitState, tab: 'display', wifiBusy: '' }; },
     computed: {
-      state: function () { return this.ctx.state; },
-      sys: function () { return this.ctx.state.system; },
-      about: function () { return this.ctx.state.system.about; },
-      theme: function () { return this.ctx.state.theme; },
-      gear: function () { return this.ctx.state.gear; },
-      restricted: function () { return this.ctx.state.isDriving(); },
-      restrictionText: function () {
-        if (!this.restricted) return 'P 挡或低速状态，娱乐与视频功能不受限制';
-        return '行车中，娱乐功能已限制（车速 ' + this.state.speed + ' km/h）';
+      sys: function () { return this.S.data.system; },
+      about: function () { return this.S.data.about; },
+      cfg: function () { return global.COCKPIT_CONFIG; },
+      tabs: function () {
+        return [
+          { key: 'display', label: '显示', icon: 'brightness' },
+          { key: 'network', label: '网络', icon: 'wifi' },
+          { key: 'bluetooth', label: '蓝牙', icon: 'bt' },
+          { key: 'ota', label: '系统升级', icon: 'ota' },
+          { key: 'about', label: '关于', icon: 'info' }
+        ];
       },
-      batteryText: function () { return this.state.vehicle.battery + '%'; }
+      brightness: function () { return this.S.brightness; },
+      theme: function () { return this.S.theme; },
+      wifi: function () { return this.sys.wifi; },
+      wifiList: function () { return this.sys.wifiList || []; },
+      bt: function () { return this.S.data.media.bt; },
+      ota: function () { return this.sys.ota; },
+      storagePct: function () {
+        var st = this.sys.storage || { used: 0, total: 1 };
+        return Math.round((st.used / st.total) * 100);
+      },
+      amapConfigured: function () { return !!(this.cfg.amapKey && String(this.cfg.amapKey).trim()); }
     },
     mounted: function () {
       var self = this;
-      var R = global.RoeweVoiceRegistry;
-      R.say('深色模式', ['切换到深色模式', '深色模式', '夜间模式'], function () { self.setTheme('dark'); }, '设置');
-      R.say('浅色模式', ['切换到浅色模式', '浅色模式', '白天模式'], function () { self.setTheme('light'); }, '设置');
-      R.say('主题切换', ['切换主题', '换肤'], function () { self.ctx.toggleTheme(); }, '设置');
-      R.say('WLAN 开关', ['打开无线网络', '关闭无线网络', 'WiFi'], function () { self.toggle('wifi'); }, '设置');
-      R.say('蓝牙开关', ['打开蓝牙', '关闭蓝牙'], function () { self.toggle('bluetooth'); }, '设置');
-      R.say('亮度调节', ['屏幕亮度调到 90', '调亮屏幕', '调暗屏幕'], function () { self.sys.brightness = 90; }, '设置');
-      R.say('系统升级', ['检查系统更新', '升级系统', 'OTA'], function () { self.checkOta(); }, '设置');
-      R.say('切换前进挡', ['挂前进挡', '切换到 D 挡', '开始行驶'], function () { self.setGear('D'); }, '设置');
-      R.say('切换驻车挡', ['挂驻车挡', '切换到 P 挡', '停车'], function () { self.setGear('P'); }, '设置');
+      this._uns = [
+        global.CockpitVoiceRegistry.register({
+          id: 'settings.theme', scope: 'settings', label: '切换主题',
+          phrases: ['切换主题', '打开深色模式', '打开浅色模式', '换个主题'],
+          handler: function () {
+            var t = String(arguments[0] || '');
+            if (t.indexOf('浅') >= 0 || t.indexOf('亮') >= 0) self.setTheme('light');
+            else if (t.indexOf('深') >= 0 || t.indexOf('暗') >= 0) self.setTheme('dark');
+            else self.setTheme(self.theme === 'dark' ? 'light' : 'dark');
+            return '已切换为' + (self.theme === 'dark' ? '深色' : '浅色') + '主题。';
+          }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'settings.brightnessUp', scope: 'settings', label: '调高亮度',
+          phrases: ['调高亮度', '屏幕亮一点', '亮度加'],
+          handler: function () { self.bumpBright(10); return '亮度已调整为 ' + self.brightness + '%。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'settings.brightnessDown', scope: 'settings', label: '调低亮度',
+          phrases: ['调低亮度', '屏幕暗一点', '亮度减'],
+          handler: function () { self.bumpBright(-10); return '亮度已调整为 ' + self.brightness + '%。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'settings.wifi', scope: 'settings', label: 'WiFi 开关',
+          phrases: ['打开无线网络', '关闭无线网络', '打开wifi', '关闭wifi'],
+          handler: function () {
+            self.toggleWifi();
+            return '无线网络已' + (self.wifi.on ? '打开' : '关闭') + '。';
+          }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'settings.bluetooth', scope: 'settings', label: '蓝牙开关',
+          phrases: ['打开蓝牙', '关闭蓝牙'],
+          handler: function () {
+            self.toggleBt();
+            return '蓝牙已' + (self.sys.bluetooth.on ? '打开' : '关闭') + '。';
+          }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'settings.ota', scope: 'settings', label: '检查升级',
+          phrases: ['检查系统升级', '检查更新', '有没有新版本'],
+          handler: function () { self.tab = 'ota'; self.checkOta(); return '正在检查系统升级。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'settings.simulator', scope: 'settings', label: '驾驶状态模拟器',
+          phrases: ['打开模拟器', '驾驶模拟器', '切换挡位', '模拟行车'],
+          handler: function () { global.CockpitSimulator.open(); return '驾驶状态模拟器已打开。'; }
+        })
+      ];
     },
+    beforeUnmount: function () { (this._uns || []).forEach(function (fn) { fn(); }); },
     methods: {
-      setTheme: function (key) {
-        this.ctx.setTheme(key);
-      },
-      toggle: function (key) {
-        this.sys[key] = !this.sys[key];
-        var label = key === 'wifi' ? '无线网络' : key === 'bluetooth' ? '蓝牙' : key;
-        this.ctx.toast.show(label + (this.sys[key] ? '已开启' : '已关闭'), 'info');
-      },
       setBrightness: function (v) {
-        this.sys.brightness = Number(v);
+        this.S.brightness = Math.max(20, Math.min(100, Number(v) || 0));
+        global.CockpitStore.persistBrightness(this.S.brightness);
       },
-      /* ---------- 行车状态模拟器 ---------- */
-      setGear: function (g) {
-        this.ctx.simulator.setGear(g);
+      bumpBright: function (d) { this.setBrightness(this.S.brightness + d); },
+      setTheme: function (t) {
+        this.S.theme = t;
+        global.CockpitStore.persistTheme(t);
+        global.CockpitMap.setTheme(t);
       },
-      setSpeed: function (v) {
-        this.ctx.simulator.setSpeed(Number(v));
+      toggleWifi: function () {
+        this.wifi.on = !this.wifi.on;
+        global.CockpitSafety.notify({ text: '无线网络已' + (this.wifi.on ? '开启' : '关闭'), icon: 'wifi' });
       },
-      quickSpeed: function (v) {
-        this.ctx.simulator.setSpeed(v);
+      connect: function (net) {
+        var self = this;
+        if (!this.wifi.on) { global.CockpitSafety.notify({ text: '请先开启无线网络', icon: 'wifi', level: 'warn' }); return; }
+        if (net.saved) { this.wifi.ssid = net.ssid; this.wifi.signal = net.signal; global.CockpitSafety.notify({ text: '已连接 ' + net.ssid, icon: 'wifi', level: 'ok' }); return; }
+        this.wifiBusy = net.ssid;
+        global.setTimeout(function () {
+          self.wifiBusy = '';
+          net.saved = true;
+          self.wifi.ssid = net.ssid;
+          self.wifi.signal = net.signal;
+          global.CockpitSafety.notify({ text: '已连接 ' + net.ssid, icon: 'wifi', level: 'ok' });
+        }, 1200);
       },
-      /* ---------- OTA ---------- */
+      toggleBt: function () {
+        this.sys.bluetooth.on = !this.sys.bluetooth.on;
+        global.CockpitSafety.notify({ text: '蓝牙已' + (this.sys.bluetooth.on ? '开启' : '关闭'), icon: 'bt' });
+      },
+      forgetBt: function () {
+        this.bt.connected = false;
+        global.CockpitSafety.notify({ text: '已断开 ' + (this.bt.device || '设备'), icon: 'bt', level: 'warn' });
+      },
+      setLanguage: function (l) {
+        this.sys.language = l;
+        global.CockpitSafety.notify({ text: l === 'zh-CN' ? '语言已切换为中文' : 'Language switched to English', icon: 'info', level: 'ok' });
+      },
       checkOta: function () {
         var self = this;
-        if (this.otaBusy) return;
-        this.otaBusy = true;
-        this.otaDone = false;
-        this.ctx.toast.show('正在检查更新…', 'info');
-        setTimeout(function () {
-          self.otaBusy = false;
-          self.otaDone = true;
-          self.sys.otaNew = true;
-          self.ctx.toast.show('发现新版本 OS 3.3.0，可预约升级', 'info');
+        this.ota.lastCheck = this.nowText();
+        global.CockpitSafety.notify({ text: '正在检查更新…', icon: 'ota' });
+        global.setTimeout(function () {
+          global.CockpitSafety.notify({
+            text: self.ota.available ? '发现新版本 ' + self.ota.available.version : '当前已是最新版本',
+            icon: 'ota', level: 'ok'
+          });
         }, 1400);
       },
-      installOta: function () {
-        var self = this;
-        if (this.otaBusy) return;
-        this.otaBusy = true;
-        this.ctx.toast.show('升级包下载中，请勿断电', 'warn');
-        setTimeout(function () {
-          self.otaBusy = false;
-          self.sys.otaNew = false;
-          self.sys.otaVersion = 'OS 3.3.0';
-          self.ctx.toast.show('已升级至 OS 3.3.0', 'info');
-        }, 2200);
+      nowText: function () {
+        var d = new Date();
+        var p = function (n) { return ('0' + n).slice(-2); };
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+      },
+      openSim: function () { global.CockpitSimulator.open(); },
+      resetAll: function () {
+        this.S.theme = 'dark';
+        this.S.brightness = 80;
+        global.CockpitStore.persistTheme('dark');
+        global.CockpitStore.persistBrightness(80);
+        global.CockpitMap.setTheme('dark');
+        global.CockpitSafety.notify({ text: '显示设置已恢复默认', icon: 'check', level: 'ok' });
       }
     },
-    template: [
-      '<div class="page-scroll">',
-      '  <div class="grid">',
+    template:
+      '<div class="view view-settings">' +
+        '<header class="page-head">' +
+          '<button class="ph-back" aria-label="返回主页" @click="$root.go(\'home\')"><c-icon name="back" :size="22"></c-icon></button>' +
+          '<h2 class="ph-title">设置</h2>' +
+          '<span class="ph-status"><c-icon name="settings" :size="16"></c-icon>{{ cfg.vehicle.model }}</span>' +
+        '</header>' +
 
-      /* ---------- 行车状态模拟器（安全规则 4） ---------- */
-      '    <card-panel class="col-6" title="行车状态模拟器" icon="sim" tone="accent">',
-      '      <div class="sim">',
-      '        <div class="sim__gear">',
-      '          <button class="sim__gear-btn" :class="gear === \'P\' ? \'is-on\' : \'\'" @click="setGear(\'P\')">P 驻车</button>',
-      '          <button class="sim__gear-btn" :class="gear === \'D\' ? \'is-on\' : \'\'" @click="setGear(\'D\')">D 前进</button>',
-      '        </div>',
-      '        <div class="sim__speed">',
-      '          <div class="strip"><span class="slider__label">车速</span>',
-      '            <span class="sim__speed-val">{{ state.speed }} km/h</span></div>',
-      '          <input type="range" min="0" max="120" step="1" :value="state.speed" @input="setSpeed($event.target.value)" aria-label="车速">',
-      '        </div>',
-      '        <div class="strip">',
-      '          <button class="btn btn--sm btn--ghost" @click="quickSpeed(0)">0</button>',
-      '          <button class="btn btn--sm btn--ghost" @click="quickSpeed(30)">30</button>',
-      '          <button class="btn btn--sm btn--ghost" @click="quickSpeed(60)">60</button>',
-      '          <button class="btn btn--sm btn--ghost" @click="quickSpeed(90)">90</button>',
-      '        </div>',
-      '        <div class="sim__note" :class="restricted ? \'is-warn\' : \'\'">{{ restrictionText }}</div>',
-      '      </div>',
-      '    </card-panel>',
+        '<nav class="seg-tabs" aria-label="设置分类">' +
+          '<button v-for="t in tabs" :key="t.key" :class="{ on: tab === t.key }" @click="tab = t.key">' +
+            '<c-icon :name="t.icon" :size="18"></c-icon><span>{{ t.label }}</span>' +
+          '</button>' +
+        '</nav>' +
 
-      /* ---------- 显示 ---------- */
-      '    <card-panel class="col-3" title="显示与主题" icon="brightness">',
-      '      <div class="theme-pick">',
-      '        <button v-for="t in themes" :key="t.key" class="theme-card" :class="theme === t.key ? \'is-on\' : \'\'" @click="setTheme(t.key)">',
-      '          <span class="theme-card__prev" :class="t.key === \'dark\' ? \'theme-card__prev--dark\' : \'theme-card__prev--light\'">',
-      '            <i></i><i></i><i></i>',
-      '          </span>',
-      '          <span class="list__main"><span class="list__title">{{ t.label }}</span>',
-      '            <span class="list__sub">{{ t.desc }}</span></span>',
-      '          <rw-icon v-if="theme === t.key" name="check" :size="24"></rw-icon>',
-      '        </button>',
-      '      </div>',
-      '      <div class="brightness-row">',
-      '        <rw-icon name="brightness" :size="24"></rw-icon>',
-      '        <input type="range" min="20" max="100" step="1" :value="sys.brightness" @input="setBrightness($event.target.value)" aria-label="屏幕亮度">',
-      '        <span class="slider__value">{{ sys.brightness }}%</span>',
-      '      </div>',
-      '    </card-panel>',
+        /* ---------- 显示 ---------- */
+        '<template v-if="tab === \'display\'">' +
+          '<section class="card">' +
+            '<h3 class="card-title">屏幕亮度</h3>' +
+            '<div class="bright-row">' +
+              '<button class="rnd" aria-label="降低亮度" @click="bumpBright(-10)"><c-icon name="minus" :size="20"></c-icon></button>' +
+              '<input class="slider" type="range" min="20" max="100" step="1" :value="brightness" aria-label="屏幕亮度" @input="setBrightness($event.target.value)">' +
+              '<button class="rnd" aria-label="提高亮度" @click="bumpBright(10)"><c-icon name="plus" :size="20"></c-icon></button>' +
+              '<span class="bright-val">{{ brightness }}%</span>' +
+            '</div>' +
+            '<p class="hint">夜间行车建议保持 60% 以下亮度，减少眩光干扰。</p>' +
+          '</section>' +
+          '<section class="card">' +
+            '<h3 class="card-title">外观主题</h3>' +
+            '<div class="theme-grid">' +
+              '<button class="theme-card dark" :class="{ on: theme === \'dark\' }" @click="setTheme(\'dark\')">' +
+                '<span class="tc-prev"><i></i><i></i><i></i></span><b>深色模式</b><small>夜间 / 隧道推荐</small>' +
+              '</button>' +
+              '<button class="theme-card light" :class="{ on: theme === \'light\' }" @click="setTheme(\'light\')">' +
+                '<span class="tc-prev"><i></i><i></i><i></i></span><b>浅色模式</b><small>白天高对比度</small>' +
+              '</button>' +
+            '</div>' +
+          '</section>' +
+          '<section class="card">' +
+            '<div class="row-list">' +
+              '<div class="row"><c-icon name="sun" :size="20"></c-icon><span>自动亮度</span>' +
+                '<button class="sw" :class="{ on: S.autoBrightness }" @click="S.autoBrightness = !S.autoBrightness"><i></i></button></div>' +
+              '<div class="row"><c-icon name="info" :size="20"></c-icon><span>语言</span>' +
+                '<span class="seg-mini">' +
+                  '<button :class="{ on: sys.language === \'zh-CN\' }" @click="setLanguage(\'zh-CN\')">中文</button>' +
+                  '<button :class="{ on: sys.language === \'en-US\' }" @click="setLanguage(\'en-US\')">EN</button>' +
+                '</span></div>' +
+            '</div>' +
+            '<div class="row-actions"><button class="btn" @click="resetAll">恢复默认显示设置</button></div>' +
+          '</section>' +
+        '</template>' +
 
-      /* ---------- 连接 ---------- */
-      '    <card-panel class="col-3" title="连接" icon="wifi">',
-      '      <button class="list__item list__item--btn" style="width:100%" @click="toggle(\'wifi\')">',
-      '        <rw-icon name="wifi" :size="26"></rw-icon>',
-      '        <span class="list__main"><span class="list__title">无线网络</span>',
-      '          <span class="list__sub">{{ sys.wifi ? sys.wifiName : \'未连接\' }}</span></span>',
-      '        <span class="switch" :class="sys.wifi ? \'is-on\' : \'\'"></span>',
-      '      </button>',
-      '      <button class="list__item list__item--btn" style="width:100%" @click="toggle(\'bluetooth\')">',
-      '        <rw-icon name="bluetooth" :size="26"></rw-icon>',
-      '        <span class="list__main"><span class="list__title">蓝牙</span>',
-      '          <span class="list__sub">{{ sys.bluetooth ? sys.btName : \'已关闭\' }}</span></span>',
-      '        <span class="switch" :class="sys.bluetooth ? \'is-on\' : \'\'"></span>',
-      '      </button>',
-      '      <div class="kv"><span class="muted">信号强度</span><span>{{ sys.wifi ? \'强 · -52 dBm\' : \'—\' }}</span></div>',
-      '    </card-panel>',
+        /* ---------- 网络 ---------- */
+        '<template v-if="tab === \'network\'">' +
+          '<section class="card">' +
+            '<div class="head-row"><h3 class="card-title">无线网络</h3>' +
+              '<button class="sw" :class="{ on: wifi.on }" @click="toggleWifi"><i></i></button></div>' +
+            '<div class="net-now"><c-icon name="wifi" :size="20"></c-icon>' +
+              '<div class="net-text"><b>{{ wifi.on ? wifi.ssid : \'无线网络已关闭\' }}</b>' +
+                '<small>{{ wifi.on ? \'IP \' + wifi.ip + \' · 信号 \' + wifi.signal + \'/4\' : \'打开后可搜索附近热点\' }}</small></div>' +
+            '</div>' +
+            '<ul class="net-list">' +
+              '<li v-for="n in wifiList" :key="n.ssid" :class="{ on: n.ssid === wifi.ssid && wifi.on }">' +
+                '<c-icon name="wifi" :size="18"></c-icon>' +
+                '<div class="net-text"><b>{{ n.ssid }}</b><small>{{ n.secure ? \'加密网络\' : \'开放网络\' }}{{ n.saved ? \' · 已保存\' : \'\' }}</small></div>' +
+                '<span class="sig">{{ n.signal }}/4</span>' +
+                '<button class="ct-call" :disabled="wifiBusy === n.ssid" @click="connect(n)">' +
+                  '{{ wifiBusy === n.ssid ? \'连接中…\' : (n.ssid === wifi.ssid && wifi.on ? \'已连接\' : \'连接\') }}' +
+                '</button>' +
+              '</li>' +
+            '</ul>' +
+          '</section>' +
+          '<section class="card">' +
+            '<div class="row-list">' +
+              '<div class="row"><c-icon name="wifi" :size="20"></c-icon><span>车机热点</span>' +
+                '<button class="sw" :class="{ on: sys.hotspot }" @click="sys.hotspot = !sys.hotspot"><i></i></button></div>' +
+            '</div>' +
+          '</section>' +
+        '</template>' +
 
-      /* ---------- OTA ---------- */
-      '    <card-panel class="col-3" title="系统升级 OTA" icon="download" :tone="sys.otaNew ? \'accent\' : \'\'">',
-      '      <div class="list__item" style="border:none;padding:0">',
-      '        <span class="list__main"><span class="list__title">当前版本</span>',
-      '          <span class="list__sub">{{ sys.otaVersion }}</span></span>',
-      '        <span class="chip" :class="sys.otaNew ? \'chip--accent\' : \'chip--ok\'">{{ sys.otaNew ? \'有新版本\' : \'已是最新\' }}</span>',
-      '      </div>',
-      '      <div class="strip" style="margin-top:.16rem">',
-      '        <button class="btn btn--sm btn--ghost" @click="checkOta" :disabled="otaBusy">检查更新</button>',
-      '        <button class="btn btn--sm btn--primary" @click="installOta" :disabled="otaBusy || !sys.otaNew">立即升级</button>',
-      '      </div>',
-      '      <div class="bar" style="margin-top:.16rem"><div class="bar__fill" :style="{ width: otaBusy ? \'70%\' : otaDone ? \'100%\' : \'0%\' }"></div></div>',
-      '      <div class="card__hint">{{ otaBusy ? \'下载中，请勿断电…\' : otaDone ? \'最新包已就绪\' : \'建议在 P 挡驻车时升级\' }}</div>',
-      '    </card-panel>',
+        /* ---------- 蓝牙 ---------- */
+        '<template v-if="tab === \'bluetooth\'">' +
+          '<section class="card">' +
+            '<div class="head-row"><h3 class="card-title">蓝牙</h3>' +
+              '<button class="sw" :class="{ on: sys.bluetooth.on }" @click="toggleBt"><i></i></button></div>' +
+            '<div v-if="bt.connected" class="bt-now">' +
+              '<c-icon name="phone" :size="26"></c-icon>' +
+              '<div class="net-text"><b>{{ bt.device }}</b><small>已连接 · 电量 {{ bt.battery }}% · 信号 {{ bt.signal }}/4</small></div>' +
+              '<button class="mini-btn" @click="forgetBt">断开</button>' +
+            '</div>' +
+            '<p v-else class="hint">暂无已连接设备，请在手机端搜索 “{{ cfg.vehicle.plate }}” 进行配对。</p>' +
+          '</section>' +
+          '<section class="card">' +
+            '<h3 class="card-title">已配对设备</h3>' +
+            '<ul class="net-list">' +
+              '<li :class="{ on: bt.connected }">' +
+                '<c-icon name="bt" :size="18"></c-icon>' +
+                '<div class="net-text"><b>{{ bt.device }}</b><small>{{ bt.connected ? \'已连接\' : \'未连接\' }}</small></div>' +
+                '<button class="ct-call" @click="bt.connected ? forgetBt() : (bt.connected = true)">{{ bt.connected ? \'断开\' : \'连接\' }}</button>' +
+              '</li>' +
+            '</ul>' +
+          '</section>' +
+        '</template>' +
 
-      /* ---------- 关于 ---------- */
-      '    <card-panel class="col-3" title="关于本机" icon="info">',
-      '      <div class="about-grid">',
-      '        <div class="kv"><span class="muted">设备</span><span>{{ about.device }}</span></div>',
-      '        <div class="kv"><span class="muted">序列号</span><span>{{ about.sn }}</span></div>',
-      '        <div class="kv"><span class="muted">芯片</span><span>{{ about.chip }}</span></div>',
-      '        <div class="kv"><span class="muted">内存 / 存储</span><span>{{ about.ram }} / {{ about.storage }}</span></div>',
-      '        <div class="kv"><span class="muted">系统版本</span><span>{{ sys.otaVersion }}</span></div>',
-      '        <div class="kv"><span class="muted">构建号</span><span>{{ about.build }}</span></div>',
-      '        <div class="kv"><span class="muted">车型</span><span>{{ state.vehicle.model }}</span></div>',
-      '        <div class="kv"><span class="muted">车牌</span><span>{{ state.vehicle.plate }}</span></div>',
-      '        <div class="kv"><span class="muted">电池电量</span><span>{{ batteryText }}</span></div>',
-      '      </div>',
-      '      <div class="card__hint">荣威 RX5 智能座舱 · 网页演示版（零构建，纯前端）</div>',
-      '    </card-panel>',
+        /* ---------- OTA ---------- */
+        '<template v-if="tab === \'ota\'">' +
+          '<section class="card">' +
+            '<h3 class="card-title">当前版本</h3>' +
+            '<div class="stat-grid">' +
+              '<div class="stat"><small>系统版本</small><b>{{ ota.version }}</b></div>' +
+              '<div class="stat"><small>构建号</small><b class="mono">{{ ota.build }}</b></div>' +
+              '<div class="stat"><small>硬件平台</small><b>{{ ota.hardware }}</b></div>' +
+              '<div class="stat"><small>更新通道</small><b>{{ ota.channel }}</b></div>' +
+            '</div>' +
+            '<div class="row-actions">' +
+              '<button class="btn btn-accent" @click="checkOta"><c-icon name="ota" :size="18"></c-icon>检查更新</button>' +
+              '<span class="mini-tag">上次检查 {{ ota.lastCheck }}</span>' +
+            '</div>' +
+          '</section>' +
+          '<section v-if="ota.available" class="card ota-card">' +
+            '<div class="ota-hero"><c-icon name="ota" :size="26"></c-icon>' +
+              '<div class="net-text"><b>发现新版本 {{ ota.available.version }}</b><small>安装包 {{ ota.available.size }} · {{ ota.available.note }}</small></div>' +
+            '</div>' +
+            '<p class="hint">为保证行车安全，请在 P 挡且车辆静止时进行升级。本演示不会真正下载。</p>' +
+          '</section>' +
+          '<section class="card">' +
+            '<h3 class="card-title">存储空间</h3>' +
+            '<div class="store-row"><div class="store-track"><i :style="{ width: storagePct + \'%\' }"></i></div>' +
+              '<span>{{ sys.storage.used }} GB / {{ sys.storage.total }} GB</span></div>' +
+          '</section>' +
+        '</template>' +
 
-      '  </div>',
+        /* ---------- 关于 ---------- */
+        '<template v-if="tab === \'about\'">' +
+          '<section class="card about-card">' +
+            '<div class="about-logo"><c-icon name="car" :size="34"></c-icon></div>' +
+            '<b class="about-model">{{ about.model }}</b>' +
+            '<small class="about-plate">{{ cfg.vehicle.plate }} · VIN {{ about.vin }}</small>' +
+            '<div class="stat-grid">' +
+              '<div class="stat"><small>屏幕</small><b>{{ cfg.vehicle.screen }}</b></div>' +
+              '<div class="stat"><small>软件版本</small><b>{{ about.software }}</b></div>' +
+              '<div class="stat"><small>MCU</small><b>{{ about.mcu }}</b></div>' +
+              '<div class="stat"><small>IMEI</small><b class="mono">{{ about.imei }}</b></div>' +
+              '<div class="stat"><small>SN</small><b class="mono">{{ about.sn }}</b></div>' +
+              '<div class="stat"><small>地图服务</small><b>{{ amapConfigured ? \'高德在线\' : \'内置示意图（未配置 Key）\' }}</b></div>' +
+            '</div>' +
+            '<p class="hint">本车机为网页版演示系统，所有车辆数据、媒体与雷达信息均为模拟数据。</p>' +
+          '</section>' +
+          '<section class="card">' +
+            '<h3 class="card-title">驾驶状态模拟器</h3>' +
+            '<p class="hint">切换 P / R / N / D 挡位并调节车速，用于验证行车安全限制。</p>' +
+            '<div class="row-actions"><button class="btn btn-accent" @click="openSim"><c-icon name="speed" :size="18"></c-icon>打开模拟器</button></div>' +
+          '</section>' +
+        '</template>' +
       '</div>'
-    ].join('\n')
   };
+
+  global.CSettingsView = settings;
 })(window);

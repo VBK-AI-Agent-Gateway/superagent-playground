@@ -1,225 +1,195 @@
 /*!
- * 车辆 3D 卡片：优先 Three.js CDN 简易 3D 车模，
- * 加载失败 / 不可用时降级为高质量 SVG + CSS 3D 动效（卡片始终有立体呈现）。
- * 两种实现都会被「驾驶状态模拟器」驱动：车速越快，模型旋转越快。
+ * js/components/car-model.js — 车辆 3D 模型卡片
+ * 优先使用 Three.js CDN 渲染真实 3D 车模；CDN 不可用（离线）或 WebGL 缺失时，
+ * 自动降级为高质量 SVG + CSS 3D 立体动效（卡片依然具有立体呈现）。
  */
 (function (global) {
   'use strict';
 
-  var THREE_CDN = [
-    'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
-    'https://unpkg.com/three@0.160.0/build/three.min.js'
-  ];
+  var THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+  var loadState = { tried: false, ok: false, promise: null };
 
-  function buildCar(THREE, renderer) {
-    var group = new THREE.Group();
-    var bodyMat = new THREE.MeshStandardMaterial({ color: 0x1f6feb, metalness: 0.85, roughness: 0.28 });
-    var glassMat = new THREE.MeshStandardMaterial({ color: 0x0a1626, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.85 });
-    var trimMat = new THREE.MeshStandardMaterial({ color: 0x11161f, metalness: 0.5, roughness: 0.6 });
-
-    /* 车身 */
-    var body = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.52, 4.5), bodyMat);
-    body.position.y = 0.62;
-    group.add(body);
-
-    /* 车顶 */
-    var roof = new THREE.Mesh(new THREE.BoxGeometry(1.78, 0.5, 2.3), glassMat);
-    roof.position.set(0, 1.0, -0.15);
-    group.add(roof);
-
-    /* 前后灯 */
-    var headMat = new THREE.MeshStandardMaterial({ color: 0xdff1ff, emissive: 0x6fb7ff, emissiveIntensity: 1.2 });
-    var tailMat = new THREE.MeshStandardMaterial({ color: 0xff5a5a, emissive: 0xff2d2d, emissiveIntensity: 0.9 });
-    [-0.62, 0.62].forEach(function (x) {
-      var h = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.1), headMat);
-      h.position.set(x, 0.68, 2.24);
-      group.add(h);
-      var t = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.13, 0.1), tailMat);
-      t.position.set(x, 0.72, -2.24);
-      group.add(t);
+  function loadThree() {
+    if (loadState.promise) return loadState.promise;
+    loadState.tried = true;
+    loadState.promise = new Promise(function (resolve) {
+      if (global.THREE) { loadState.ok = true; return resolve(true); }
+      var s = document.createElement('script');
+      s.src = THREE_URL;
+      s.async = true;
+      s.onload = function () { loadState.ok = !!global.THREE; resolve(loadState.ok); };
+      s.onerror = function () { loadState.ok = false; resolve(false); };
+      document.head.appendChild(s);
+      global.setTimeout(function () { if (!global.THREE) { loadState.ok = false; resolve(false); } }, 6000);
     });
-
-    /* 车轮 */
-    var wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.26, 24);
-    [-1.02, 1.02].forEach(function (x) {
-      [-1.45, 1.5].forEach(function (z) {
-        var w = new THREE.Mesh(wheelGeo, trimMat);
-        w.rotation.z = Math.PI / 2;
-        w.position.set(x, 0.36, z);
-        group.add(w);
-      });
-    });
-
-    /* 底盘阴影 */
-    var shadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.6, 5.2),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32 })
-    );
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.01;
-    group.add(shadow);
-
-    /* 地面反光圆盘 */
-    var ring = new THREE.Mesh(
-      new THREE.RingGeometry(2.6, 3.2, 48),
-      new THREE.MeshBasicMaterial({ color: 0x2b6cff, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.02;
-    group.add(ring);
-
-    return group;
+    return loadState.promise;
   }
 
-  /* ---------------- Vue 组件 ---------------- */
-  var CarModel3D = {
-    name: 'CarModel3D',
-    props: {
-      speed: { type: Number, default: 0 },
-      gear: { type: String, default: 'P' },
-      battery: { type: Number, default: 72 }
-    },
+  var carModel = {
+    props: { height: { type: Number, default: 260 } },
     data: function () {
-      return { engine: 'css', ready: false };
+      return { mode: 'svg', failed: false, S: global.CockpitState, spin: 0 };
     },
     computed: {
-      spinDuration: function () {
-        /* CSS 降级模式：车速越高旋转越快，P 挡缓慢展示 */
-        var s = Math.max(this.speed, 0);
-        var sec = s > 0 ? Math.max(2.2, 16 - s * 0.12) : 26;
-        return sec + 's';
-      },
-      tilt: function () {
-        return this.gear === 'D' ? '-8deg' : '-14deg';
+      driving: function () { return global.CockpitSafety.isDriving(); },
+      carStyle: function () {
+        return { transform: 'rotateX(' + (this.driving ? 8 : 14) + 'deg) rotateZ(' + (this.driving ? -18 : -26) + 'deg)' };
       }
     },
     mounted: function () {
-      this.boot();
+      var self = this;
+      loadThree().then(function (ok) {
+        if (!ok) { self.failed = true; return; }
+        try {
+          self.initThree();
+          self.mode = 'three';
+        } catch (e) {
+          self.failed = true;
+          self.mode = 'svg';
+        }
+      });
+      this._spinTimer = global.setInterval(function () {
+        if (self.mode !== 'svg') return;
+        self.spin = (self.spin + 0.35) % 360;
+      }, 60);
     },
     beforeUnmount: function () {
-      this.dispose();
+      if (this._spinTimer) global.clearInterval(this._spinTimer);
+      if (this._raf) global.cancelAnimationFrame(this._raf);
+      if (this._renderer) { try { this._renderer.dispose(); } catch (e) { /* noop */ } }
     },
     methods: {
-      boot: function () {
-        var self = this;
-        var urls = THREE_CDN.slice();
-        (function tryNext() {
-          if (!urls.length || !self.$el || !self.$el.isConnected) {
-            self.engine = 'css';
-            return;
-          }
-          var url = urls.shift();
-          global.RoeweMap.loadScript(url, 6000)
-            .then(function () { self.initThree(); })
-            .catch(function () { tryNext(); });
-        })();
-      },
+      /* ---------- Three.js 真实 3D ---------- */
       initThree: function () {
         var THREE = global.THREE;
-        if (!THREE) { this.engine = 'css'; return; }
-        try {
-          var host = this.$refs.stage;
-          if (!host) { this.engine = 'css'; return; }
-          var width = host.clientWidth || 640;
-          var height = host.clientHeight || 360;
+        var el = this.$refs.gl;
+        if (!el || !THREE) throw new Error('WebGL 容器不可用');
 
-          this.scene = new THREE.Scene();
-          this.camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
-          this.camera.position.set(4.6, 3.2, 6.4);
-          this.camera.lookAt(0, 0.7, 0);
+        var w = el.clientWidth || 640, h = this.height;
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 100);
+        camera.position.set(4.6, 3.0, 5.4);
+        camera.lookAt(0, 0.35, 0);
 
-          this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-          this.renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
-          this.renderer.setSize(width, height);
-          host.appendChild(this.renderer.domElement);
+        var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+        renderer.setSize(w, h, false);
+        el.appendChild(renderer.domElement);
 
-          this.scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-          var key = new THREE.DirectionalLight(0xffffff, 1.5);
-          key.position.set(5, 8, 5);
-          this.scene.add(key);
-          var rim = new THREE.PointLight(0x2b6cff, 1.6, 30);
-          rim.position.set(-5, 4, -6);
-          this.scene.add(rim);
+        scene.add(new THREE.HemisphereLight(0xdfefff, 0x0a1220, 1.15));
+        var key = new THREE.DirectionalLight(0xffffff, 1.5);
+        key.position.set(5, 8, 5);
+        scene.add(key);
+        var rim = new THREE.DirectionalLight(0x38bdf8, 1.1);
+        rim.position.set(-6, 3, -5);
+        scene.add(rim);
 
-          this.car = buildCar(THREE, this.renderer);
-          this.scene.add(this.car);
+        var group = new THREE.Group();
+        var bodyMat = new THREE.MeshStandardMaterial({ color: 0x1b2836, metalness: 0.72, roughness: 0.32 });
+        var glassMat = new THREE.MeshStandardMaterial({ color: 0x0a1420, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.86 });
+        var trimMat = new THREE.MeshStandardMaterial({ color: 0x4ea8ff, metalness: 0.6, roughness: 0.3, emissive: 0x0b3a63 });
 
-          this.engine = 'three';
-          this.ready = true;
-          this.clock = new THREE.Clock();
-          var self = this;
-          (function loop() {
-            if (!self.renderer || self.disposed) return;
-            self.raf = requestAnimationFrame(loop);
-            var dt = self.clock.getDelta();
-            if (self.car) {
-              var spd = Math.max(self.speed, self.gear === 'D' ? 6 : 2);
-              self.car.rotation.y += dt * (0.12 + spd * 0.012);
-            }
-            self.renderer.render(self.scene, self.camera);
-          })();
-          if (global.ResizeObserver) {
-            this.ro = new ResizeObserver(function () { self.resize(); });
-            this.ro.observe(host);
-          }
-        } catch (e) {
-          this.engine = 'css';
-        }
+        var body = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.82, 1.76), bodyMat);
+        body.position.y = 0.72;
+        group.add(body);
+
+        var cabin = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.72, 1.56), glassMat);
+        cabin.position.set(-0.16, 1.42, 0);
+        group.add(cabin);
+
+        var hood = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.3, 1.66), bodyMat);
+        hood.position.set(1.2, 1.05, 0);
+        group.add(hood);
+
+        // 贯穿式尾灯 / 前大灯
+        var tail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 1.5), trimMat);
+        tail.position.set(-1.96, 0.86, 0);
+        group.add(tail);
+        var head = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 1.42), trimMat);
+        head.position.set(1.96, 0.86, 0);
+        group.add(head);
+
+        // 车轮
+        var wheelGeo = new THREE.CylinderGeometry(0.44, 0.44, 0.28, 24);
+        var wheelMat = new THREE.MeshStandardMaterial({ color: 0x0a0f16, metalness: 0.35, roughness: 0.75 });
+        [[1.22, 0.86], [1.22, -0.86], [-1.2, 0.86], [-1.2, -0.86]].forEach(function (p) {
+          var wm = new THREE.Mesh(wheelGeo, wheelMat);
+          wm.rotation.x = Math.PI / 2;
+          wm.position.set(p[0], 0.44, p[1]);
+          group.add(wm);
+        });
+
+        var ground = new THREE.Mesh(
+          new THREE.CircleGeometry(4.6, 48),
+          new THREE.MeshBasicMaterial({ color: 0x0d1725, transparent: true, opacity: 0.55 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = 0.01;
+        scene.add(ground);
+        scene.add(group);
+
+        this._three = { THREE: THREE, scene: scene, camera: camera, renderer: renderer, group: group };
+        this._glEl = el;
+        this._sizeW = w;
+
+        var self = this;
+        var t = 0;
+        (function loop() {
+          self._raf = global.requestAnimationFrame(loop);
+          t += 0.006;
+          // 自转 + 行车时轻微俯仰，强化立体呈现
+          group.rotation.y = t;
+          group.rotation.z = self.driving ? Math.sin(t * 6) * 0.012 : 0;
+          renderer.render(scene, camera);
+        })();
       },
-      resize: function () {
-        if (this.engine !== 'three' || !this.renderer) return;
-        var host = this.$refs.stage;
-        var width = host.clientWidth || 640;
-        var height = host.clientHeight || 360;
-        this.camera.aspect = width / height;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(width, height);
-      },
-      dispose: function () {
-        this.disposed = true;
-        if (this.raf) cancelAnimationFrame(this.raf);
-        if (this.ro) this.ro.disconnect();
-        if (this.renderer) {
-          try { this.renderer.dispose(); } catch (e) {}
-          if (this.renderer.domElement && this.renderer.domElement.parentNode) {
-            this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
-          }
-        }
-      }
+
+      onEnter: function () { if (this.mode === 'three') this.$refs.wrap.classList.add('is-hover'); },
+      onLeave: function () { if (this.mode === 'three') this.$refs.wrap.classList.remove('is-hover'); }
     },
-    template: [
-      '<div class="car-model" :data-engine="engine">',
-      '  <div ref="stage" class="car-model__stage" v-show="engine === \'three\'"></div>',
-      '  <div v-if="engine !== \'three\'" class="car-model__css">',
-      '    <div class="car-css3d" :style="{ animationDuration: spinDuration }">',
-      '      <div class="car-css3d__ring"></div>',
-      '      <svg class="car-css3d__body" :style="{ transform: \'rotateX(64deg) rotateZ(-24deg)\' }" viewBox="0 0 420 620" aria-hidden="true">',
-      '        <defs>',
-      '          <linearGradient id="bodyGrad" x1="0" y1="0" x2="1" y2="1">',
-      '            <stop offset="0%" stop-color="#4d9bff"/><stop offset="55%" stop-color="#1f6feb"/><stop offset="100%" stop-color="#0b3f8f"/>',
-      '          </linearGradient>',
-      '          <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">',
-      '            <stop offset="0%" stop-color="#9ed4ff" stop-opacity="0.95"/><stop offset="100%" stop-color="#0a1a2c" stop-opacity="0.95"/>',
-      '          </linearGradient>',
-      '        </defs>',
-      '        <ellipse cx="210" cy="310" rx="190" ry="270" fill="#0b1220" opacity="0.55"/>',
-      '        <path d="M60 300 q10 -150 60 -170 l180 0 q50 20 60 170 q4 130 -20 170 l-260 0 q-24 -40 -20 -170z" fill="url(#bodyGrad)" stroke="#7fb9ff" stroke-width="3"/>',
-      '        <path d="M105 250 q18 -110 105 -118 q87 8 105 118 z" fill="url(#glassGrad)" stroke="#bfe0ff" stroke-width="2"/>',
-      '        <path d="M120 320 h180 M120 420 h180" stroke="#dff1ff" stroke-width="2" opacity="0.35"/>',
-      '        <rect x="88" y="196" width="46" height="16" rx="8" fill="#e9f6ff"/>',
-      '        <rect x="286" y="196" width="46" height="16" rx="8" fill="#e9f6ff"/>',
-      '        <rect x="88" y="470" width="52" height="15" rx="7" fill="#ff5a5a"/>',
-      '        <rect x="280" y="470" width="52" height="15" rx="7" fill="#ff5a5a"/>',
-      '      </svg>',
-      '    </div>',
-      '    <div class="car-model__ground"></div>',
-      '  </div>',
-      '  <div class="car-model__badge">',
-      '    <span class="dot"></span>{{ engine === \'three\' ? \'3D 实时模型\' : \'SVG 立体模型\' }}',
-      '  </div>',
+    template:
+      '<div class="car-model" ref="wrap" :style="{ height: height + \'px\' }" @mouseenter="onEnter" @mouseleave="onLeave">' +
+        '<div v-if="mode === \'three\'" class="car-gl" ref="gl" :style="{ height: height + \'px\' }"></div>' +
+
+        '<div v-else class="car-svg-scene" :style="{ height: height + \'px\' }">' +
+          '<svg class="car-svg" viewBox="0 0 420 260" :style="carStyle" aria-label="车辆立体模型">' +
+            '<defs>' +
+              '<linearGradient id="cmBody" x1="0" y1="0" x2="0" y2="1">' +
+                '<stop offset="0%" stop-color="#4b6b8c"/><stop offset="45%" stop-color="#22374d"/><stop offset="100%" stop-color="#0e1a27"/>' +
+              '</linearGradient>' +
+              '<linearGradient id="cmGlass" x1="0" y1="0" x2="1" y2="1">' +
+                '<stop offset="0%" stop-color="#8fd8ff" stop-opacity="0.85"/><stop offset="100%" stop-color="#0b2233" stop-opacity="0.95"/>' +
+              '</linearGradient>' +
+              '<linearGradient id="cmLight" x1="0" y1="0" x2="0" y2="1">' +
+                '<stop offset="0%" stop-color="#bff0ff"/><stop offset="100%" stop-color="#1e8fff"/>' +
+              '</linearGradient>' +
+              '<radialGradient id="cmShadow"><stop offset="0%" stop-color="#000" stop-opacity="0.55"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>' +
+            '</defs>' +
+            '<ellipse cx="210" cy="228" rx="170" ry="26" fill="url(#cmShadow)"/>' +
+            '<g class="cm-body-group">' +
+              '<path d="M52 176 L70 120 Q78 96 104 92 L300 84 Q332 84 344 108 L366 150 L368 178 Q368 190 354 190 L66 190 Q52 190 52 176 Z" fill="url(#cmBody)" stroke="#5f88ad" stroke-width="1.4"/>' +
+              '<path d="M112 118 Q126 74 176 70 L268 68 Q310 70 320 108 L326 124 Z" fill="url(#cmGlass)" stroke="#7fc6ff" stroke-width="1.2" stroke-opacity="0.7"/>' +
+              '<path d="M182 72 L180 120 M262 70 L264 122" stroke="#0a1622" stroke-width="3" stroke-opacity="0.8"/>' +
+              '<path d="M350 122 L366 150 L368 176 L338 176 L334 124 Z" fill="#16283a" stroke="#4ea8ff" stroke-opacity="0.45"/>' +
+              '<rect x="336" y="146" width="34" height="11" rx="5" fill="url(#cmLight)"/>' +
+              '<rect x="52" y="146" width="30" height="10" rx="5" fill="#ff5a5f" opacity="0.9"/>' +
+              '<circle cx="112" cy="190" r="30" fill="#0a0f16" stroke="#2b3d52" stroke-width="2"/>' +
+              '<circle cx="112" cy="190" r="14" fill="#16222f" stroke="#4ea8ff" stroke-opacity="0.5"/>' +
+              '<circle cx="312" cy="190" r="30" fill="#0a0f16" stroke="#2b3d52" stroke-width="2"/>' +
+              '<circle cx="312" cy="190" r="14" fill="#16222f" stroke="#4ea8ff" stroke-opacity="0.5"/>' +
+              '<path d="M104 138 L120 138 L118 160 L106 160 Z" fill="#38bdf8" opacity="0.35"/>' +
+              '<path d="M300 138 L316 138 L314 160 L302 160 Z" fill="#38bdf8" opacity="0.35"/>' +
+              '<path d="M70 120 L104 92" stroke="#9dc4e6" stroke-width="1" stroke-opacity="0.5"/>' +
+              '<path d="M366 150 L344 108" stroke="#9dc4e6" stroke-width="1" stroke-opacity="0.4"/>' +
+            '</g>' +
+          '</svg>' +
+          '<div class="car-svg-glow" :class="{ pulsing: driving }"></div>' +
+          '<span class="car-mode-badge">SVG 立体模式</span>' +
+        '</div>' +
+
+        '<span v-if="mode === \'three\'" class="car-mode-badge three">Three.js 3D 模式</span>' +
       '</div>'
-    ].join('\n')
   };
 
-  global.CarModel3D = CarModel3D;
+  global.CCarModel = carModel;
 })(window);

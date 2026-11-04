@@ -1,30 +1,26 @@
 /*!
- * 轻量化非阻塞弹窗层
- * 规则 2：悬浮面板不遮挡导航与关键驾驶信息（车速、挡位、告警永远可见）
- * —— 本层固定在顶部安全区与底部 Dock 之上之间的「低信息区」，高度受限、半透明、不拦截除自身以外的操作。
+ * js/components/toast.js — 轻量提示浮层（安全规则 2）
+ * 位置固定在状态栏下方、Dock 之上，采用玻璃拟态 + 细边框；
+ * 不覆盖车速 / 挡位 / 告警区域，不使用阻塞式遮罩。
  */
 (function (global) {
   'use strict';
 
-  global.ToastLayer = {
-    name: 'ToastLayer',
-    props: {
-      toast: { type: Object, required: true }
-    },
+  var toast = {
+    data: function () { return { S: global.CockpitState }; },
     computed: {
-      cls: function () {
-        return 'toast toast--' + (this.toast.level || 'info') + (this.toast.show ? ' is-show' : '');
-      }
+      cls: function () { return 'toast tone-' + this.S.toast.level; }
     },
-    template: [
-      '<div class="toast-layer" role="status" aria-live="polite">',
-      '  <transition name="toast-pop">',
-      '    <div v-if="toast.show" :key="toast.id" :class="cls">',
-      '      <rw-icon :name="toast.level === \'warn\' ? \'warn\' : \'info\'" :size="26"></rw-icon>',
-      '      <span>{{ toast.text }}</span>',
-      '    </div>',
-      '  </transition>',
-      '</div>'
-    ].join('\n')
+    template:
+      '<transition name="toast-in">' +
+        '<div v-if="S.toast.visible" class="toast-host" role="status" aria-live="polite">' +
+          '<div :class="cls">' +
+            '<c-icon :name="S.toast.icon || \'info\'" :size="20"></c-icon>' +
+            '<span class="toast-text">{{ S.toast.text }}</span>' +
+          '</div>' +
+        '</div>' +
+      '</transition>'
   };
+
+  global.CToast = toast;
 })(window);

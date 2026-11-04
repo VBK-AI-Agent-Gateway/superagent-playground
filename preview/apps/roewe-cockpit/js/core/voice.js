@@ -1,191 +1,209 @@
 /*!
- * 语音助手：Web Speech API（SpeechRecognition / SpeechSynthesis）
- * 不支持时自动降级为文字模拟对话（同一套指令解析）。
+ * js/core/voice.js — 语音助手核心
+ * 优先使用 Web Speech API（SpeechRecognition 识别 + SpeechSynthesis 播报）；
+ * 浏览器不支持（如 Firefox / 无网络）时自动降级为文字模拟对话，交互逻辑完全一致。
  */
 (function (global) {
   'use strict';
 
-  var Registry = global.RoeweVoiceRegistry;
+  var cfg = global.COCKPIT_CONFIG || {};
+  var vcfg = cfg.voice || {};
+  var S = global.CockpitState;
+  var registry = global.CockpitVoiceRegistry;
 
-  function createVoiceAssistant(ctx) {
-    var state = ctx.state;
-    var toast = ctx.toast;
-    var router = ctx.router;
-    var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
-    var synthesis = global.speechSynthesis;
+  var SR = global.SpeechRecognition || global.webkitSpeechRecognition || null;
+  var synth = global.speechSynthesis || null;
 
-    var recognition = null;
-    var restartTimer = null;
+  var recog = null;
+  var continuousTimer = null;
+  var restarting = false;
 
-    state.voice.supported = !!SR;
-    state.voice.mode = SR ? 'speech' : 'text';
+  /* ---------- 内置兜底问答（未命中「可见即可说」指令时） ---------- */
+  var FALLBACK = [
+    { k: ['你好', '您好', '嗨'],                       a: function () { return '你好，我在。可以说“打开空调”“导航去虹桥”“下一首”。'; } },
+    { k: ['能做什么', '会什么', '帮助', '功能'],       a: function () { return '我能控制空调、媒体、导航、车灯与车窗，也能打开 360 全景和泊车辅助。'; } },
+    { k: ['时间', '几点'],                             a: function () { return '现在是 ' + S.clock.time + '。'; } },
+    { k: ['天气'],                                     a: function () { var w = S.data.weather; return w.city + '，' + w.text + '，' + w.now + '℃，最高 ' + w.high + '℃。'; } },
+    { k: ['电量', '续航'],                             a: function () { var v = S.data.vehicle; return '当前电量 ' + v.battery + '%，剩余续航约 ' + v.range + ' 公里。'; } },
+    { k: ['油量', '油耗'],                             a: function () { var v = S.data.vehicle; return '油量 ' + v.fuel + '%，百公里油耗 ' + v.fuelPer100 + ' 升。'; } },
+    { k: ['车速', '速度'],                             a: function () { return '当前车速 ' + S.data.vehicle.speed + ' 公里每小时，挡位 ' + S.gear + ' 挡。'; } },
+    { k: ['挡位', '档位'],                             a: function () { return '当前是 ' + S.gear + ' 挡。'; } },
+    { k: ['谢谢', '感谢'],                             a: function () { return '不客气。'; } },
+    { k: ['再见', '退下', '关闭语音'],                 a: function () { global.setTimeout(function () { voice.stopListening(); }, 600); return '好的，先退下了。'; } }
+  ];
 
-    function now() {
-      return new Date().toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
-    }
-
-    function addMessage(role, text) {
-      state.voice.messages.push({ id: Date.now() + Math.random(), role: role, text: text, at: now() });
-      if (state.voice.messages.length > 30) state.voice.messages.shift();
-    }
-
-    /* ---------------- 语音播报 ---------------- */
-    function speak(text) {
-      addMessage('assistant', text);
-      if (!synthesis || !text) return;
-      try {
-        synthesis.cancel();
-        var utter = new SpeechSynthesisUtterance(text);
-        utter.lang = 'zh-CN';
-        utter.rate = 1.05;
-        utter.pitch = 1;
-        utter.onstart = function () { state.voice.speaking = true; };
-        utter.onend = function () { state.voice.speaking = false; };
-        synthesis.speak(utter);
-      } catch (e) {
-        state.voice.speaking = false;
+  function pickFallback(text) {
+    var t = String(text || '');
+    for (var i = 0; i < FALLBACK.length; i++) {
+      for (var j = 0; j < FALLBACK[i].k.length; j++) {
+        if (t.indexOf(FALLBACK[i].k[j]) !== -1) return FALLBACK[i].a();
       }
     }
-
-    /* ---------------- 指令执行 ---------------- */
-    function runCommand(text) {
-      var normalized = Registry.normalize(text);
-      if (!normalized) return false;
-
-      /* 唤醒词 */
-      if (/^(你好斑马|你好荣威|你好小威|嗨荣威)/.test(normalized)) {
-        state.voice.awake = true;
-        return respond('在呢，请讲');
-      }
-      if (/(退下|再见|关闭语音|休眠)/.test(normalized)) {
-        state.voice.awake = false;
-        return respond('好的，需要我时喊「你好荣威」');
-      }
-
-      /* 特殊业务指令在各自模块注册时已带 run 回调，这里统一派发 */
-      var cmd = Registry.match(normalized);
-      if (cmd) {
-        try { cmd.run(); } catch (e) { /* 单个指令失败不影响对话 */ }
-        return respond('好的，' + cmd.desc);
-      }
-
-      /* 未命中注册指令时的兜底回应 */
-      if (/导航|去|到/.test(normalized)) {
-        state.nav.destination = normalized.replace(/^(导航到|导航|我要去|去)/, '') || '上海虹桥火车站';
-        router.push('nav');
-        return respond('已为你规划到' + state.nav.destination + '的路线');
-      }
-      return respond('抱歉，我还没学会这条指令，你可以说「' + randomHint() + '」');
-    }
-
-    function respond(text) {
-      speak(text);
-      return true;
-    }
-
-    function randomHint() {
-      var list = global.ROEWE_MOCK.voiceCommands;
-      return list[Math.floor(Math.random() * list.length)];
-    }
-
-    /* 外部（文字输入 / 点击快捷指令）统一入口 */
-    function submit(text, fromUser) {
-      if (!text) return;
-      addMessage('user', text);
-      state.voice.transcript = text;
-      var ok = runCommand(text);
-      if (!ok) respond('抱歉，没有听清，请再说一遍');
-    }
-
-    /* ---------------- 唤醒词监听 ---------------- */
-    function ensureRecognition() {
-      if (!SR || recognition) return recognition;
-      recognition = new SR();
-      recognition.lang = 'zh-CN';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-
-      recognition.onstart = function () {
-        state.voice.listening = true;
-      };
-      recognition.onerror = function (e) {
-        state.voice.listening = false;
-        if (e && (e.error === 'not-allowed' || e.error === 'service-not-allowed')) {
-          state.voice.mode = 'text';
-          state.voice.supported = false;
-          toast.warn('浏览器未授权麦克风，已切换为文字模拟对话');
-        }
-      };
-      recognition.onend = function () {
-        state.voice.listening = false;
-        /* 连续对话：短暂静默后自动重新开始监听 */
-        if (state.voice.awake && state.voice.mode === 'speech') {
-          if (restartTimer) clearTimeout(restartTimer);
-          restartTimer = setTimeout(function () {
-            try { recognition.start(); } catch (e) { /* 已在监听 */ }
-          }, 700);
-        }
-      };
-      recognition.onresult = function (event) {
-        var interim = '';
-        var finalText = '';
-        for (var i = event.resultIndex; i < event.results.length; i++) {
-          var res = event.results[i];
-          if (res.isFinal) finalText += res[0].transcript;
-          else interim += res[0].transcript;
-        }
-        state.voice.transcript = finalText || interim;
-        if (finalText) {
-          var t = Registry.normalize(finalText);
-          if (!state.voice.awake) {
-            if (/你好斑马|你好荣威|你好小威/.test(t)) {
-              state.voice.awake = true;
-              respond('在呢，请讲');
-            }
-          } else {
-            submit(finalText, true);
-          }
-        }
-      };
-      return recognition;
-    }
-
-    function wake() {
-      state.voice.awake = true;
-      if (state.voice.mode === 'speech') {
-        try { ensureRecognition().start(); } catch (e) { /* 忽略重复启动 */ }
-      }
-      respond('你好，我是斑马，请讲');
-    }
-
-    function sleep() {
-      state.voice.awake = false;
-      if (recognition) { try { recognition.stop(); } catch (e) {} }
-    }
-
-    function toggleMic() {
-      if (state.voice.mode !== 'speech') {
-        toast.info('当前浏览器不支持语音识别，请使用文字输入');
-        return;
-      }
-      if (state.voice.listening) {
-        sleep();
-      } else {
-        wake();
-      }
-    }
-
-    return {
-      submit: submit,
-      speak: speak,
-      wake: wake,
-      sleep: sleep,
-      toggleMic: toggleMic,
-      runCommand: runCommand,
-      addMessage: addMessage
-    };
+    return null;
   }
 
-  global.createVoiceAssistant = createVoiceAssistant;
+  var voice = {
+    supported: !!SR,
+    synthSupported: !!synth,
+
+    init: function () {
+      if (!SR) {
+        S.voice.available = false;
+        return false;
+      }
+      try {
+        recog = new SR();
+        recog.lang = vcfg.lang || 'zh-CN';
+        recog.continuous = true;
+        recog.interimResults = true;
+        recog.maxAlternatives = 1;
+
+        recog.onstart = function () {
+          S.voice.listening = true;
+          S.voice.wake = true;
+        };
+        recog.onend = function () {
+          S.voice.listening = false;
+          if (restarting && S.voice.wake) {
+            restarting = false;
+            try { recog.start(); } catch (e) { /* 忽略重复 start */ }
+          }
+        };
+        recog.onerror = function (ev) {
+          S.voice.listening = false;
+          if (ev && ev.error === 'not-allowed') {
+            S.voice.available = false;
+            global.CockpitSafety.notify({ text: '麦克风权限未开启，已切换文字指令', icon: 'mic', level: 'warn' });
+          } else if (ev && (ev.error === 'network' || ev.error === 'service-not-allowed')) {
+            S.voice.available = false;
+            global.CockpitSafety.notify({ text: '语音服务不可用，已切换文字模拟对话', icon: 'mic', level: 'warn' });
+          }
+        };
+        recog.onresult = function (ev) {
+          var interim = '', final = '';
+          for (var i = ev.resultIndex; i < ev.results.length; i++) {
+            var r = ev.results[i];
+            if (r.isFinal) final += r[0].transcript;
+            else interim += r[0].transcript;
+          }
+          S.voice.transcript = (final || interim).trim();
+          if (final) {
+            if (isWake(S.voice.transcript)) {
+              S.voice.transcript = '';
+              voice.speak('我在，请讲。');
+              return;
+            }
+            voice.handle(S.voice.transcript);
+          }
+        };
+        S.voice.available = true;
+        return true;
+      } catch (e) {
+        S.voice.available = false;
+        return false;
+      }
+    },
+
+    /* ---------- 唤醒词 ---------- */
+    isWake: function (t) { return isWake(t); },
+
+    startListening: function (opts) {
+      opts = opts || {};
+      S.voice.wake = true;
+      if (!recog) {
+        S.voice.listening = false;
+        return false;
+      }
+      try {
+        recog.start();
+        S.voice.listening = true;
+        return true;
+      } catch (e) {
+        /* 已在监听中 */
+        S.voice.listening = true;
+        return true;
+      } finally {
+        if (opts.keepAlive !== false) this.scheduleContinuous();
+      }
+    },
+
+    stopListening: function () {
+      restarting = false;
+      if (continuousTimer) { global.clearTimeout(continuousTimer); continuousTimer = null; }
+      S.voice.listening = false;
+      S.voice.wake = false;
+      if (recog) { try { recog.stop(); } catch (e) { /* noop */ } }
+    },
+
+    /* 连续对话：回答后保持聆听窗口 */
+    scheduleContinuous: function () {
+      if (continuousTimer) global.clearTimeout(continuousTimer);
+      var self = this;
+      continuousTimer = global.setTimeout(function () {
+        if (S.voice.listening || S.voice.speaking) return;   // 还在对话中，不打扰
+      }, vcfg.continuousWindowMs || 8000);
+    },
+
+    /* ---------- 语音 → 指令 ---------- */
+    handle: function (text) {
+      var t = String(text || '').trim();
+      if (!t) return { ok: false, reply: '没有听清，请再说一次。' };
+      S.voice.transcript = t;
+      global.CockpitVoiceLog.push({ role: 'user', text: t, at: Date.now() });
+
+      var hit = registry ? registry.match(t) : null;
+      var reply;
+      if (hit) {
+        try {
+          reply = hit.entry.handler();
+        } catch (e) {
+          reply = '这个操作暂时不可用。';
+        }
+        if (typeof reply !== 'string') reply = hit.entry.label + ' 已执行';
+      } else {
+        reply = pickFallback(t);
+        if (!reply) {
+          reply = '暂时不支持“' + t + '”。可以说“打开空调”“导航去虹桥火车站”“打开 360 全景”。';
+        }
+      }
+      global.CockpitVoiceLog.push({ role: 'assistant', text: reply, at: Date.now() });
+      S.voice.reply = reply;
+      this.speak(reply);
+      return { ok: true, reply: reply, matched: !!hit, command: hit ? hit.entry.label : null };
+    },
+
+    /* ---------- 播报 ---------- */
+    speak: function (text) {
+      S.voice.reply = text;
+      if (!synth || !text) return;
+      try {
+        synth.cancel();
+        var u = new global.SpeechSynthesisUtterance(text);
+        u.lang = vcfg.lang || 'zh-CN';
+        u.rate = 1.05;
+        u.pitch = 1;
+        u.onstart = function () { S.voice.speaking = true; };
+        u.onend = function () { S.voice.speaking = false; };
+        u.onerror = function () { S.voice.speaking = false; };
+        synth.speak(u);
+      } catch (e) { /* 忽略播报失败 */ }
+    },
+
+    /* ---------- 无 Web Speech API 时的文字模拟入口 ---------- */
+    textFallback: function (text) { return this.handle(text); }
+  };
+
+  function isWake(t) {
+    var words = vcfg.wakeWords || [];
+    var s = String(t || '').replace(/[\s,，。.、!！?？]/g, '');
+    for (var i = 0; i < words.length; i++) {
+      if (s.indexOf(words[i].replace(/[\s,，。.、!！?？]/g, '')) !== -1) return true;
+    }
+    return false;
+  }
+
+  /* 对话记录（浮层与语音页共用） */
+  global.CockpitVoiceLog = [];
+
+  global.CockpitVoice = voice;
 })(window);

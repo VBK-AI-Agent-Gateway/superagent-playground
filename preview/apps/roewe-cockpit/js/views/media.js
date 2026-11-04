@@ -1,289 +1,241 @@
 /*!
- * 多媒体模块
- * 规格：在线音乐、蓝牙电话、本地音频、音量滑块
- * 规则 1：D 挡行车中（车速 > 5km/h）娱乐功能受限，页面整体锁定并提示「行车中，娱乐功能已限制」
+ * js/views/media.js — 模块 4：媒体
+ * 在线/本地音乐、蓝牙通话、本地音频播放与音量滑条。
+ * 安全规则 1：D 挡进入本页会被挡位状态机拦截（娱乐功能受限）。
+ * 安全规则 2：本页所有浮动弹层均为轻量面板，不覆盖顶栏的车速/挡位/告警。
  */
 (function (global) {
   'use strict';
 
-  var SOURCES = [
-    { key: 'netease', label: '在线音乐', icon: 'media' },
-    { key: 'bluetooth', label: '蓝牙电话', icon: 'phone' },
-    { key: 'local', label: '本地音频', icon: 'folder' },
-    { key: 'radio', label: '收音机', icon: 'signal' }
-  ];
-
-  global.MediaView = {
-    name: 'MediaView',
-    inject: ['ctx'],
-    data: function () {
-      return {
-        sources: SOURCES,
-        dial: '',
-        tracks: (global.ROEWE_MOCK && global.ROEWE_MOCK.tracks) || [],
-        devices: (global.ROEWE_MOCK && global.ROEWE_MOCK.btDevices) || []
-      };
-    },
+  var media = {
+    data: function () { return { S: global.CockpitState, tab: 'music', btView: 'devices' }; },
     computed: {
-      state: function () { return this.ctx.state; },
-      media: function () { return this.ctx.state.media; },
-      restricted: function () { return this.ctx.state.isDriving(); },
-      track: function () { return this.tracks[this.media.trackIndex] || this.tracks[0] || {}; },
+      m: function () { return this.S.data.media; },
+      bt: function () { return this.S.data.media.bt; },
+      track: function () { return this.m.tracks[this.m.trackIndex] || {}; },
       progressPct: function () {
-        return Math.min(100, Math.round((this.media.progress / Math.max(1, this.media.duration)) * 100));
+        var d = this.track.duration || 1;
+        return Math.max(0, Math.min(100, Math.round(this.m.progress / d * 100)));
       },
-      progressText: function () { return this.fmt(this.media.progress); },
-      durationText: function () { return this.fmt(this.media.duration); },
-      coverStyle: function () {
-        var c = this.track.cover || '#2b6cff';
-        return { background: 'linear-gradient(150deg, ' + c + ' 0%, rgba(6,12,26,.95) 100%)' };
+      nowText: function () { return this.fmt(this.m.progress) + ' / ' + this.fmt(this.track.duration || 0); },
+      callActive: function () { return this.bt.call && this.bt.call.state !== 'idle'; },
+      callText: function () {
+        var st = this.bt.call && this.bt.call.state;
+        return st === 'dialing' ? '正在呼叫…' : (st === 'talking' ? '通话中 ' + this.bt.call.seconds + 's' : '');
       },
-      callActive: function () { return this.media.call && this.media.call.active; }
-    },
-    created: function () {
-      var self = this;
-      /* 播放进度计时器（仅前台播放时推进） */
-      this._timer = setInterval(function () {
-        if (!self.media.playing || self.restricted) return;
-        self.media.progress += 1;
-        if (self.media.progress >= self.media.duration) self.next();
-      }, 1000);
-    },
-    beforeUnmount: function () {
-      clearInterval(this._timer);
+      tabList: function () {
+        return [
+          { key: 'music', label: '音乐', icon: 'media' },
+          { key: 'bt', label: '蓝牙通话', icon: 'phone' },
+          { key: 'local', label: '本地音频', icon: 'list' }
+        ];
+      }
     },
     mounted: function () {
       var self = this;
-      var R = global.RoeweVoiceRegistry;
-      R.say('播放音乐', ['播放音乐', '放首歌', '开始播放'], function () { self.play(); }, '多媒体');
-      R.say('暂停播放', ['暂停播放', '停止播放', '暂停'], function () { self.pause(); }, '多媒体');
-      R.say('下一首', ['下一首', '切歌'], function () { self.next(); }, '多媒体');
-      R.say('上一首', ['上一首', '返回上一首'], function () { self.prev(); }, '多媒体');
-      R.say('音量调节', ['音量调到 60', '声音大一点', '静音'], function () { self.setVolume(60); }, '多媒体');
-      R.say('蓝牙连接', ['连接蓝牙', '打开蓝牙音乐'], function () { self.connectBt(self.devices[0]); }, '多媒体');
+      this._uns = [
+        global.CockpitVoiceRegistry.register({
+          id: 'media.play', scope: 'media', label: '播放音乐',
+          phrases: ['播放音乐', '继续播放', '播放', '暂停播放', '暂停'],
+          handler: function () { self.togglePlay(); return self.m.playing ? '正在播放：' + self.track.title : '音乐已暂停。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'media.next', scope: 'media', label: '下一首',
+          phrases: ['下一首', '切歌', '换一首'],
+          handler: function () { self.next(); return '已切换：' + self.track.title; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'media.prev', scope: 'media', label: '上一首',
+          phrases: ['上一首', '回到上一首'],
+          handler: function () { self.prev(); return '已切换：' + self.track.title; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'media.volUp', scope: 'media', label: '调大音量',
+          phrases: ['调大音量', '声音大一点', '音量加'],
+          handler: function () { self.bumpVol(5); return '音量已调整为 ' + self.m.volume + '。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'media.volDown', scope: 'media', label: '调小音量',
+          phrases: ['调小音量', '声音小一点', '音量减'],
+          handler: function () { self.bumpVol(-5); return '音量已调整为 ' + self.m.volume + '。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'media.mute', scope: 'media', label: '静音',
+          phrases: ['静音', '取消静音', '关闭声音'],
+          handler: function () { self.m.mute = !self.m.mute; return self.m.mute ? '已静音。' : '已取消静音。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'media.radio', scope: 'media', label: '打开收音机',
+          phrases: ['打开收音机', '听广播', '播放广播'],
+          handler: function () { self.setSource('radio'); return '已切换到收音机 ' + self.m.radio.freq + '。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'media.call', scope: 'media', label: '拨打电话',
+          phrases: ['拨打电话', '打电话给', '呼叫'],
+          handler: function () { self.tab = 'bt'; self.dial(self.bt.contacts[0]); return '正在呼叫 ' + self.bt.contacts[0].name + '。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'media.hangup', scope: 'media', label: '挂断电话',
+          phrases: ['挂断电话', '挂断', '结束通话'],
+          handler: function () { self.hangup(); return '通话已挂断。'; }
+        })
+      ];
+      this._t = global.setInterval(function () {
+        if (!self.m.playing || self.m.mute) return;
+        self.m.progress += 1;
+        if (self.m.progress >= (self.track.duration || 999)) self.next();
+      }, 1000);
+    },
+    beforeUnmount: function () {
+      (this._uns || []).forEach(function (fn) { fn(); });
+      if (this._t) global.clearInterval(this._t);
     },
     methods: {
-      fmt: function (sec) {
-        var s = Math.max(0, Math.floor(sec || 0));
-        var m = Math.floor(s / 60);
-        var r = s % 60;
-        return m + ':' + (r < 10 ? '0' : '') + r;
+      fmt: function (s) {
+        var n = Math.max(0, Math.floor(s || 0));
+        return Math.floor(n / 60) + ':' + (n % 60 < 10 ? '0' : '') + (n % 60);
       },
-      /* 受限守卫：所有播放相关操作先经过规则 1 检查 */
-      guard: function () {
-        if (this.restricted) {
-          this.ctx.toast.restricted();
-          return false;
-        }
-        return true;
-      },
-      setSource: function (key) {
-        if (key !== 'bluetooth' && !this.guard()) return;
-        if (key === 'bluetooth' && this.restricted) {
-          this.ctx.toast.restricted();
-          return;
-        }
-        this.media.source = key;
-        if (key === 'bluetooth') this.media.playing = false;
-      },
-      play: function () {
-        if (!this.guard()) return;
-        if (this.media.source === 'bluetooth') {
-          this.ctx.toast.show('蓝牙音源请使用手机播放', 'info');
-          return;
-        }
-        this.media.playing = true;
-        this.ctx.toast.show('正在播放：' + this.track.title, 'info');
-      },
-      pause: function () {
-        this.media.playing = false;
-      },
-      next: function () {
-        if (!this.guard()) return;
-        this.media.trackIndex = (this.media.trackIndex + 1) % this.tracks.length;
-        this.media.duration = this.track.duration || 245;
-        this.media.progress = 0;
-      },
-      prev: function () {
-        if (!this.guard()) return;
-        this.media.trackIndex = (this.media.trackIndex - 1 + this.tracks.length) % this.tracks.length;
-        this.media.duration = this.track.duration || 245;
-        this.media.progress = 0;
-      },
-      pickTrack: function (i) {
-        if (!this.guard()) return;
-        this.media.trackIndex = i;
-        this.media.duration = this.track.duration || 245;
-        this.media.progress = 0;
-        this.media.playing = true;
-      },
+      togglePlay: function () { this.m.playing = !this.m.playing; },
+      next: function () { this.m.trackIndex = (this.m.trackIndex + 1) % this.m.tracks.length; this.m.progress = 0; },
+      prev: function () { this.m.trackIndex = (this.m.trackIndex - 1 + this.m.tracks.length) % this.m.tracks.length; this.m.progress = 0; },
       seek: function (e) {
-        if (!this.guard()) return;
-        this.media.progress = Number(e.target.value);
+        var d = this.track.duration || 1;
+        this.m.progress = Math.round(d * (e.target.value / 100));
       },
-      setVolume: function (v) {
-        this.media.volume = Math.max(0, Math.min(100, Number(v)));
-        this.media.muted = this.media.volume === 0;
-      },
-      toggleMute: function () {
-        this.media.muted = !this.media.muted;
-        this.ctx.toast.show(this.media.muted ? '已静音' : '已取消静音', 'info');
-      },
-      connectBt: function (d) {
-        if (!this.guard()) return;
-        var b = this.media.bluetooth;
-        b.connected = !b.connected;
-        b.device = d ? d.name : 'iPhone 15 Pro';
-        this.ctx.toast.show(b.connected ? '已连接 ' + b.device : '已断开蓝牙连接', 'info');
-      },
-      dialNumber: function (num) {
-        if (!this.guard()) return;
-        var n = (num || this.dial || '').trim();
-        if (!n) {
-          this.ctx.toast.show('请输入号码或选择联系人', 'warn');
-          return;
-        }
-        var b = this.media.bluetooth;
-        b.connected = true;
-        b.dialing = true;
-        this.media.call = { active: true, name: n, number: n, seconds: 0 };
+      bumpVol: function (d) { this.m.volume = Math.max(0, Math.min(100, this.m.volume + d)); if (this.m.volume > 0) this.m.mute = false; },
+      setSource: function (s) { this.m.source = s; this.tab = s === 'bluetooth' ? 'bt' : (s === 'local' ? 'local' : 'music'); },
+      pickTrack: function (i) { this.m.trackIndex = i; this.m.progress = 0; this.m.playing = true; },
+      dial: function (c) {
+        if (!c) return;
+        this.bt.call = { state: 'dialing', name: c.name, number: c.number, seconds: 0 };
         var self = this;
-        clearInterval(this._callTimer);
-        this._callTimer = setInterval(function () {
-          if (self.media.call.active) self.media.call.seconds += 1;
-        }, 1000);
-        this.ctx.toast.show('正在呼叫 ' + n, 'info');
+        global.setTimeout(function () {
+          if (self.bt.call && self.bt.call.state === 'dialing') self.bt.call.state = 'talking';
+        }, 1800);
       },
-      hangUp: function () {
-        clearInterval(this._callTimer);
-        this.media.bluetooth.dialing = false;
-        this.media.call = { active: false, name: '', number: '', seconds: 0 };
-        this.ctx.toast.show('通话已结束', 'info');
-      },
-      callTime: function () { return this.fmt(this.media.call ? this.media.call.seconds : 0); }
+      hangup: function () { this.bt.call = { state: 'idle', name: '', number: '', seconds: 0 }; }
     },
-    beforeUnmount2: null,
-    template: [
-      '<div class="page-scroll">',
-      '  <div class="grid">',
+    template:
+      '<div class="view view-media">' +
+        '<header class="page-head">' +
+          '<button class="ph-back" aria-label="返回主页" @click="$root.go(\'home\')"><c-icon name="back" :size="22"></c-icon></button>' +
+          '<h2 class="ph-title">媒体</h2>' +
+          '<div class="ph-tabs">' +
+            '<button v-for="t in tabList" :key="t.key" :class="{ on: tab === t.key }" @click="tab = t.key">' +
+              '<c-icon :name="t.icon" :size="16"></c-icon>{{ t.label }}' +
+            '</button>' +
+          '</div>' +
+        '</header>' +
 
-      /* ---------- 行车受限横幅 ---------- */
-      '    <div v-if="restricted" class="col-6 alarm-banner is-warn" role="status">',
-      '      <rw-icon name="warn" :size="30"></rw-icon>',
-      '      <span class="grow">行车中，娱乐功能已限制（{{ state.speed }} km/h）</span>',
-      '      <span class="tag tag--warn">P 挡解锁</span>',
-      '    </div>',
+        /* ---------- 音乐 ---------- */
+        '<template v-if="tab === \'music\'">' +
+          '<section class="card now-card" :class="{ playing: m.playing }">' +
+            '<div class="album" :class="{ spin: m.playing }">' +
+              '<c-icon name="media" :size="46"></c-icon>' +
+            '</div>' +
+            '<div class="now-info">' +
+              '<b class="now-title">{{ track.title }}</b>' +
+              '<span class="now-artist">{{ track.artist }}</span>' +
+              '<span class="now-src">{{ m.source === \'radio\' ? \'收音机\' : (m.source === \'local\' ? \'本地音频\' : \'在线音乐\') }}</span>' +
+            '</div>' +
+          '</section>' +
 
-      /* ---------- 播放器 ---------- */
-      '    <card-panel class="col-4" title="正在播放" icon="media" :class="restricted ? \'is-locked\' : \'\'">',
-      '      <div class="media-cover" :style="coverStyle" :class="restricted ? \'is-locked\' : \'\'">',
-      '        <span class="media-cover__disc" v-if="media.playing && !restricted"></span>',
-      '        <span class="media-cover__title">{{ track.title || \'未选择曲目\' }}</span>',
-      '      </div>',
-      '      <div class="muted center" style="font-size:.21rem">{{ track.artist || \'—\' }} · {{ track.album || \'—\' }}</div>',
-      '      <div class="slider">',
-      '        <input type="range" min="0" :max="media.duration" step="1" :value="media.progress"',
-      '               @input="seek" :disabled="restricted" aria-label="播放进度">',
-      '        <div class="strip"><span class="slider__label">{{ progressText }}</span>',
-      '          <span class="slider__label">{{ durationText }}</span></div>',
-      '      </div>',
-      '      <div class="media-controls">',
-      '        <button class="media-btn" @click="prev" :disabled="restricted" aria-label="上一首">',
-      '          <rw-icon name="prev" :size="30"></rw-icon>',
-      '        </button>',
-      '        <button class="media-btn media-btn--play" @click="media.playing ? pause() : play()"',
-      '                :disabled="restricted" aria-label="播放或暂停">',
-      '          <rw-icon :name="media.playing ? \'pause\' : \'play\'" :size="38"></rw-icon>',
-      '        </button>',
-      '        <button class="media-btn" @click="next" :disabled="restricted" aria-label="下一首">',
-      '          <rw-icon name="next" :size="30"></rw-icon>',
-      '        </button>',
-      '      </div>',
-      '      <div class="strip">',
-      '        <span class="chip">{{ SOURCE_LABEL }}</span>',
-      '        <span class="chip" v-if="restricted">受限</span>',
-      '      </div>',
-      '    </card-panel>',
+          '<section class="card player-card">' +
+            '<input class="seek" type="range" min="0" max="100" :value="progressPct" aria-label="播放进度" @input="seek">' +
+            '<div class="times"><span>{{ fmt(m.progress) }}</span><span>{{ fmt(track.duration || 0) }}</span></div>' +
+            '<div class="transport">' +
+              '<button class="tp" aria-label="上一首" @click="prev"><c-icon name="prev" :size="26"></c-icon></button>' +
+              '<button class="tp tp-play" :aria-label="m.playing ? \'暂停\' : \'播放\'" @click="togglePlay"><c-icon :name="m.playing ? \'pause\' : \'play\'" :size="32"></c-icon></button>' +
+              '<button class="tp" aria-label="下一首" @click="next"><c-icon name="next" :size="26"></c-icon></button>' +
+            '</div>' +
+          '</section>' +
 
-      /* ---------- 音源与曲库 ---------- */
-      '    <card-panel class="col-2" title="音源" icon="signal">',
-      '      <div class="stack">',
-      '        <button v-for="s in sources" :key="s.key" class="list__item list__item--btn"',
-      '                :class="media.source === s.key ? \'is-active\' : \'\'" @click="setSource(s.key)">',
-      '          <rw-icon :name="s.icon" :size="26"></rw-icon>',
-      '          <span class="list__main"><span class="list__title">{{ s.label }}</span></span>',
-      '          <rw-icon v-if="media.source === s.key" name="check" :size="24"></rw-icon>',
-      '        </button>',
-      '      </div>',
-      '      <div class="slider">',
-      '        <div class="strip"><span class="slider__label">音量</span>',
-      '          <span class="slider__value">{{ media.muted ? \'静音\' : media.volume + \'%\' }}</span></div>',
-      '        <input type="range" min="0" max="100" step="1" :value="media.muted ? 0 : media.volume"',
-      '               @input="setVolume($event.target.value)" aria-label="音量">',
-      '        <button class="btn btn--sm btn--ghost btn--block" @click="toggleMute" style="margin-top:.1rem">',
-      '          <rw-icon :name="media.muted ? \'volume-off\' : \'volume\'" :size="22"></rw-icon>',
-      '          {{ media.muted ? \'取消静音\' : \'静音\' }}',
-      '        </button>',
-      '      </div>',
-      '    </card-panel>',
+          '<section class="card vol-card">' +
+            '<button class="vol-mute" :class="{ on: m.mute }" aria-label="静音" @click="m.mute = !m.mute"><c-icon :name="m.mute ? \'mute\' : \'volume\'" :size="22"></c-icon></button>' +
+            '<input class="vol-range" type="range" min="0" max="100" v-model.number="m.volume" aria-label="音量">' +
+            '<b class="vol-val">{{ m.volume }}</b>' +
+          '</section>' +
 
-      /* ---------- 蓝牙电话 ---------- */
-      '    <card-panel class="col-3" title="蓝牙电话" icon="phone" :class="restricted ? \'is-locked\' : \'\'">',
-      '      <div class="list__item" style="border:none;padding:0">',
-      '        <span class="list__main">',
-      '          <span class="list__title">{{ media.bluetooth.device }}</span>',
-      '          <span class="list__sub">{{ media.bluetooth.connected ? \'已连接\' : \'未连接\' }}</span>',
-      '        </span>',
-      '        <button class="btn btn--sm" :class="media.bluetooth.connected ? \'btn--ghost\' : \'btn--primary\'"',
-      '                @click="connectBt(devices[0])" :disabled="restricted">',
-      '          {{ media.bluetooth.connected ? \'断开\' : \'连接\' }}',
-      '        </button>',
-      '      </div>',
-      '      <div class="voice-input" style="margin-top:.18rem">',
-      '        <input type="text" v-model="dial" placeholder="输入号码" :disabled="restricted" aria-label="输入号码">',
-      '        <button class="btn btn--primary btn--sm" @click="dialNumber()" :disabled="restricted">呼叫</button>',
-      '      </div>',
-      '      <div class="stack" style="margin-top:.14rem">',
-      '        <button v-for="d in devices" :key="d.name" class="list__item list__item--btn" @click="dialNumber(d.name)"',
-      '                :disabled="restricted">',
-      '          <rw-icon name="user" :size="24"></rw-icon>',
-      '          <span class="list__main"><span class="list__title">{{ d.name }}</span>',
-      '            <span class="list__sub">{{ d.number }}</span></span>',
-      '        </button>',
-      '      </div>',
-      '      <div v-if="callActive" class="alarm-banner" style="margin-top:.18rem;background:linear-gradient(160deg,rgba(34,197,94,.9),rgba(21,128,61,.9))">',
-      '        <rw-icon name="phone" :size="28"></rw-icon>',
-      '        <span class="grow">通话中 · {{ callTime() }}</span>',
-      '        <button class="btn btn--danger btn--sm" @click="hangUp">挂断</button>',
-      '      </div>',
-      '    </card-panel>',
+          '<section class="card list-card">' +
+            '<h3 class="card-title">播放列表</h3>' +
+            '<ul class="track-list">' +
+              '<li v-for="(t, i) in m.tracks" :key="i" :class="{ on: i === m.trackIndex }" @click="pickTrack(i)">' +
+                '<span class="tl-idx">{{ i + 1 }}</span>' +
+                '<div class="tl-main"><b>{{ t.title }}</b><small>{{ t.artist }}</small></div>' +
+                '<span class="tl-dur">{{ fmt(t.duration) }}</span>' +
+                '<c-icon :name="i === m.trackIndex && m.playing ? \'pause\' : \'play\'" :size="18"></c-icon>' +
+              '</li>' +
+            '</ul>' +
+          '</section>' +
+        '</template>' +
 
-      /* ---------- 播放列表 ---------- */
-      '    <card-panel class="col-3" title="播放列表" icon="list">',
-      '      <ul class="list">',
-      '        <li v-for="(t, i) in tracks" :key="t.title">',
-      '          <button class="list__item list__item--btn" style="width:100%"',
-      '                  :class="i === media.trackIndex ? \'is-active\' : \'\'" @click="pickTrack(i)">',
-      '            <span class="track-item__idx">{{ i + 1 }}</span>',
-      '            <span class="track-item__cover" :style="{ background: t.cover }">',
-      '              <rw-icon :name="i === media.trackIndex && media.playing ? \'pause\' : \'play\'" :size="20"></rw-icon>',
-      '            </span>',
-      '            <span class="list__main">',
-      '              <span class="list__title">{{ t.title }}</span>',
-      '              <span class="list__sub">{{ t.artist }} · {{ fmt(t.duration) }}</span>',
-      '            </span>',
-      '          </button>',
-      '        </li>',
-      '      </ul>',
-      '    </card-panel>',
+        /* ---------- 蓝牙通话 ---------- */
+        '<template v-if="tab === \'bt\'">' +
+          '<section class="card bt-card">' +
+            '<div class="bt-head">' +
+              '<span class="bt-ico"><c-icon name="bt" :size="24"></c-icon></span>' +
+              '<div class="bt-info">' +
+                '<b>{{ bt.device || \'未连接设备\' }}</b>' +
+                '<small>{{ bt.connected ? \'已连接 · 电量 \' + bt.battery + \'%\' : \'蓝牙未连接\' }}</small>' +
+              '</div>' +
+              '<button class="bt-toggle" :class="{ on: bt.connected }" @click="bt.connected = !bt.connected">{{ bt.connected ? \'断开\' : \'连接\' }}</button>' +
+            '</div>' +
+          '</section>' +
 
-      '  </div>',
+          '<section v-if="callActive" class="card call-card live">' +
+            '<span class="call-av"><c-icon name="phone" :size="26"></c-icon></span>' +
+            '<div class="call-info"><b>{{ bt.call.name }}</b><small>{{ bt.call.number }} · {{ callText }}</small></div>' +
+            '<button class="call-end" aria-label="挂断" @click="hangup"><c-icon name="phone" :size="22"></c-icon></button>' +
+          '</section>' +
+
+          '<section class="card list-card">' +
+            '<h3 class="card-title">联系人</h3>' +
+            '<ul class="contact-list">' +
+              '<li v-for="(c, i) in bt.contacts" :key="i">' +
+                '<span class="ct-av">{{ c.name.slice(0, 1) }}</span>' +
+                '<div class="ct-main"><b>{{ c.name }}</b><small>{{ c.number }}</small></div>' +
+                '<button class="ct-call" aria-label="拨打电话" @click="dial(c)"><c-icon name="phone" :size="18"></c-icon>拨打</button>' +
+              '</li>' +
+            '</ul>' +
+          '</section>' +
+
+          '<section class="card list-card">' +
+            '<h3 class="card-title">最近通话</h3>' +
+            '<ul class="record-list">' +
+              '<li v-for="(r, i) in bt.recent" :key="i">' +
+                '<c-icon :name="r.type === \'in\' ? \'phone\' : \'phone\'" :size="18"></c-icon>' +
+                '<div class="ct-main"><b>{{ r.name }}</b><small>{{ r.time }}</small></div>' +
+                '<span class="rc-type" :class="\'t-\' + r.type">{{ r.type === \'in\' ? \'呼入\' : (r.type === \'out\' ? \'呼出\' : \'未接\') }}</span>' +
+              '</li>' +
+            '</ul>' +
+          '</section>' +
+        '</template>' +
+
+        /* ---------- 本地音频 ---------- */
+        '<template v-if="tab === \'local\'">' +
+          '<section class="card radio-card" :class="{ on: m.source === \'radio\' }">' +
+            '<div class="rd-head"><c-icon name="radio" :size="24"></c-icon><div><b>收音机</b><small>{{ m.radio.name }}</small></div></div>' +
+            '<div class="rd-freq">{{ m.radio.freq }}<i>MHz</i></div>' +
+            '<div class="rd-actions">' +
+              '<button class="btn" @click="setSource(\'radio\')">收听</button>' +
+              '<button class="btn" @click="m.source = \'local\'">本地音频</button>' +
+            '</div>' +
+          '</section>' +
+
+          '<section class="card list-card">' +
+            '<h3 class="card-title">本地音频（U 盘 / 车机存储）</h3>' +
+            '<ul class="track-list">' +
+              '<li v-for="(t, i) in m.tracks" :key="i" :class="{ on: i === m.trackIndex && m.source === \'local\' }" @click="setSource(\'local\'); pickTrack(i)">' +
+                '<span class="tl-idx">{{ i + 1 }}</span>' +
+                '<div class="tl-main"><b>{{ t.title }}</b><small>{{ t.artist }} · MP3 320kbps</small></div>' +
+                '<span class="tl-dur">{{ fmt(t.duration) }}</span>' +
+                '<c-icon name="play" :size="18"></c-icon>' +
+              '</li>' +
+            '</ul>' +
+          '</section>' +
+        '</template>' +
       '</div>'
-    ].join('\n')
   };
 
-  global.MediaView.computed.SOURCE_LABEL = function () {
-    var map = { netease: '在线音乐', bluetooth: '蓝牙电话', local: '本地音频', radio: '收音机' };
-    return map[this.media.source] || '在线音乐';
-  };
+  global.CMediaView = media;
 })(window);

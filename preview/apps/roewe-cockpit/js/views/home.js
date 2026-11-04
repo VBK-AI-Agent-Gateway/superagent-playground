@@ -1,212 +1,151 @@
 /*!
- * 主页模块
- * 规格：Dock（底部，由 AppDock 提供）+ 3D 车模卡片 + 速度/电量/油量仪表 + 时间与天气 + D 挡时导航优先
+ * js/views/home.js — 模块 1：主页
+ * 常驻 Dock + 车辆 3D 卡片 + 实时速度/电量/油量 + 时间天气卡片。
+ * 安全规则 1：D 挡优先显示导航卡片（导航卡片置于首位并放大），P 挡恢复完整卡片布局。
  */
 (function (global) {
   'use strict';
 
-  global.HomeView = {
-    name: 'HomeView',
-    inject: ['ctx'],
-    data: function () {
-      return { quickSeat: 0 };
-    },
+  var home = {
+    data: function () { return { S: global.CockpitState }; },
     computed: {
-      state: function () { return this.ctx.state; },
-      restricted: function () { return this.ctx.state.isDriving(); },
-      speedPct: function () {
-        return Math.max(4, Math.min(100, (this.state.speed / 180) * 100));
+      v: function () { return this.S.data.vehicle; },
+      w: function () { return this.S.data.weather; },
+      driving: function () { return global.CockpitSafety.isDriving(); },
+      /** D 挡：导航优先布局；P 挡：完整卡片布局 */
+      layout: function () { return this.driving ? 'nav-first' : 'full'; },
+      metrics: function () {
+        var v = this.v;
+        return [
+          { key: 'speed', label: '车速', value: v.speed, unit: 'km/h', tone: v.speed > 100 ? 'warn' : 'ok' },
+          { key: 'battery', label: '电量', value: v.battery, unit: '%', tone: v.battery <= 20 ? 'bad' : 'ok', sub: '续航 ' + v.range + ' km' },
+          { key: 'fuel', label: '油量', value: v.fuel, unit: '%', tone: v.fuel <= 15 ? 'bad' : 'ok', sub: '油耗 ' + v.fuelPer100 + ' L/100km' }
+        ];
       },
-      battPct: function () { return this.state.vehicle.battery; },
-      fuelPct: function () { return this.state.vehicle.fuel; },
-      /* D 挡行车时，导航信息在主页最优先 */
-      navFirst: function () { return this.state.gear === 'D'; },
-      navCue: function () {
-        var n = this.state.nav;
-        return n.nextManeuver || '请设置目的地';
+      statusList: function () {
+        var v = this.v;
+        var out = [];
+        if (!v.lock) out.push({ icon: 'unlock', text: '车门未锁' });
+        Object.keys(v.doors).forEach(function (k) {
+          if (v.doors[k]) out.push({ icon: 'door', text: ({ fl: '左前门', fr: '右前门', rl: '左后门', rr: '右后门', trunk: '后备箱' })[k] + '未关' });
+        });
+        if (v.lights.low) out.push({ icon: 'light', text: '近光灯已开' });
+        if (v.lights.fog) out.push({ icon: 'light', text: '雾灯已开' });
+        if (this.w.aqi > 100) out.push({ icon: 'wind', text: '空气质量较差' });
+        return out;
       },
-      weatherIcon: function () { return this.state.weather.icon || 'cloudy'; }
+      navSummary: function () { return this.S.data.nav.destination; },
+      modelName: function () { return (global.COCKPIT_CONFIG.vehicle || {}).model || '荣威 RX5'; },
+      plate: function () { return (global.COCKPIT_CONFIG.vehicle || {}).plate || '沪A·RX520'; },
+      driveModeText: function () {
+        var m = { eco: '经济', comfort: '舒适', sport: '运动', snow: '雪地' };
+        return m[this.S.data.vehicle.driveMode] || '舒适';
+      }
     },
     mounted: function () {
       var self = this;
-      var R = global.RoeweVoiceRegistry;
-      R.say('导航优先条', ['导航优先', '主页导航'], function () { self.openNav(); }, '主页');
-      R.say('打开天气详情', ['天气怎么样', '今天天气'], function () {
-        self.ctx.toast.show('今日 ' + self.state.weather.desc + ' ' + self.state.weather.low + '~' + self.state.weather.high + '℃', 'info');
-      }, '主页');
-      R.say('车辆状态', ['车辆状态', '胎压', '电量'], function () {
-        var v = self.state.vehicle;
-        self.ctx.toast.show('电量 ' + v.battery + '% · 续航 ' + v.range + 'km · 胎压 ' + v.tirePressure.join('/'), 'info');
-      }, '主页');
+      this.$unregister = global.CockpitVoiceRegistry.register({
+        id: 'home.nav', scope: 'home', label: '打开导航',
+        phrases: ['打开导航', '去导航', '导航'],
+        handler: function () { global.CockpitRouter.go('nav'); return '已打开导航。'; }
+      });
+      var un2 = global.CockpitVoiceRegistry.register({
+        id: 'home.climate', scope: 'home', label: '打开空调',
+        phrases: ['打开空调', '开空调', '空调'],
+        handler: function () { global.CockpitRouter.go('climate'); return '已打开空调面板。'; }
+      });
+      var un3 = global.CockpitVoiceRegistry.register({
+        id: 'home.voice', scope: 'home', label: '打开语音助手',
+        phrases: ['打开语音助手', '语音助手'],
+        handler: function () { global.CockpitRouter.go('voice'); return '语音助手已就绪。'; }
+      });
+      this._uns = [this.$unregister, un2, un3];
+      this._t = global.setInterval(function () { self.$forceUpdate(); }, 1000);
+    },
+    beforeUnmount: function () {
+      (this._uns || []).forEach(function (fn) { fn(); });
+      if (this._t) global.clearInterval(this._t);
     },
     methods: {
-      openNav: function () { this.ctx.router.push('nav'); },
-      open: function (view) { this.ctx.router.push(view); },
-      toggleTheme: function () { this.ctx.toggleTheme(); },
-      toggleSunroof: function () {
-        var s = this.state.settings;
-        s.sunroof = s.sunroof > 0 ? 0 : 60;
-        this.ctx.toast.show(s.sunroof > 0 ? '天窗已打开' : '天窗已关闭', 'info');
-      },
-      lockToggle: function () {
-        var v = this.state.vehicle;
-        v.locked = !v.locked;
-        this.ctx.toast.show(v.locked ? '车门已上锁' : '车门已解锁', v.locked ? 'info' : 'warn');
-      }
+      go: function (view) { global.CockpitRouter.go(view); },
+      openSim: function () { global.CockpitSimulator.open(); }
     },
-    template: [
-      '<div class="page-scroll">',
-      '  <div class="grid">',
+    template:
+      '<div class="view view-home" :class="\'layout-\' + layout">' +
 
-      /* ---------- 3D 车模卡片 ---------- */
-      '    <card-panel class="col-6 hero" tone="accent" :title="\'\'" v-slot:default>',
-      '      <div class="hero__stage">',
-      '        <div class="hero__top">',
-      '          <div>',
-      '            <div class="hero__model">{{ state.vehicle.model }}</div>',
-      '            <div class="hero__sub">已行驶 {{ state.vehicle.odo }} km · {{ state.vehicle.vin.slice(-6) }}</div>',
-      '          </div>',
-      '          <div class="stack" style="align-items:flex-end">',
-      '            <span class="hero__plate"><rw-icon name="car" :size="18"></rw-icon>{{ state.vehicle.plate }}</span>',
-      '            <span class="chip" :class="state.vehicle.locked ? \'chip--ok\' : \'chip--warn\'">',
-      '              <rw-icon :name="state.vehicle.locked ? \'lock\' : \'door\'" :size="16"></rw-icon>',
-      '              {{ state.vehicle.locked ? \'已上锁\' : \'未上锁\' }}',
-      '            </span>',
-      '          </div>',
-      '        </div>',
-      '        <car-model-3d :speed="state.speed" :gear="state.gear" :battery="state.vehicle.battery"></car-model-3d>',
-      '        <div class="hero__nav-cue" v-if="navFirst" @click="openNav">',
-      '          <span class="arrow"><rw-icon name="nav" :size="30"></rw-icon></span>',
-      '          <span class="grow">',
-      '            <span class="t1">{{ navCue }}</span>',
-      '            <span class="t2">D 挡行车 · 导航优先显示 · 预计 {{ state.nav.eta }} 分钟到达 {{ state.nav.destination }}</span>',
-      '          </span>',
-      '          <rw-icon name="back" :size="24" style="transform:rotate(180deg)"></rw-icon>',
-      '        </div>',
-      '      </div>',
-      '    </card-panel>',
+        /* ---------- D 挡优先：导航卡片 ---------- */
+        '<section v-if="driving" class="card nav-priority" :class="{ locked: false }">' +
+          '<div class="np-head">' +
+            '<span class="np-badge"><c-icon name="nav" :size="18"></c-icon>行车中 · 导航优先</span>' +
+            '<span class="np-eta">{{ navSummary.eta }} 分钟 · {{ navSummary.distance }} km</span>' +
+          '</div>' +
+          '<div class="np-dest"><c-icon name="poi" :size="20"></c-icon><span>{{ navSummary.name }}</span></div>' +
+          '<div class="np-lane">' +
+            '<c-icon name="route" :size="22"></c-icon>' +
+            '<span>{{ S.data.nav.lane.maneuver }}</span>' +
+          '</div>' +
+          '<button class="btn btn-accent np-go" @click="go(\'nav\')">继续导航</button>' +
+        '</section>' +
 
-      /* ---------- 导航优先卡片（P 挡时提供入口） ---------- */
-      '    <card-panel class="col-3" title="导航" icon="nav" openable view="nav" tone="accent"',
-      '                say="打开导航" :say-phrases="[\'去导航\', \'导航地图\']">',
-      '      <div class="strip">',
-      '        <span class="gauge__value">{{ state.nav.eta }}<span class="gauge__unit">分钟</span></span>',
-      '        <span class="engine-pill" :class="state.nav.engine === \'amap\' ? \'is-live\' : \'\'">',
-      '          {{ state.nav.engine === \'amap\' ? \'高德实时\' : \'离线示意图\' }}',
-      '        </span>',
-      '      </div>',
-      '      <div class="muted" style="font-size:.21rem">{{ state.nav.destination }} · {{ state.nav.distance }} km · {{ state.nav.traffic }}</div>',
-      '      <div class="nav-lanes">',
-      '        <span class="nav-lane" v-for="l in 4" :key="l" :class="l === 3 ? \'is-active\' : \'\'">',
-      '          <rw-icon name="route" :size="20"></rw-icon>',
-      '        </span>',
-      '      </div>',
-      '    </card-panel>',
+        /* ---------- 车辆 3D 卡片 ---------- */
+        '<c-card class="car-card" tone="accent">' +
+          '<template #header><span class="cc-chip">{{ driveModeText }}模式</span></template>' +
+          '<c-car-model :height="driving ? 190 : 250"></c-car-model>' +
+          '<div class="car-foot">' +
+            '<span class="car-name">{{ modelName }}</span>' +
+            '<span class="car-plate">{{ plate }}</span>' +
+          '</div>' +
+        '</c-card>' +
 
-      /* ---------- 时间 + 天气 ---------- */
-      '    <card-panel class="col-3" title="时间 · 天气" icon="cloud"',
-      '                say="查看天气" :say-phrases="[\'今天天气\', \'天气怎么样\']">',
-      '      <div class="weather-now">',
-      '        <div>',
-      '          <div class="weather-now__temp">{{ state.nowText }}</div>',
-      '          <div class="weather-now__desc">{{ state.nowDate }}</div>',
-      '        </div>',
-      '        <span class="weather-icon"><rw-icon :name="weatherIcon" :size="64"></rw-icon></span>',
-      '      </div>',
-      '      <div class="strip">',
-      '        <span style="font-size:.24rem">{{ state.weather.city }} · {{ state.weather.desc }}</span>',
-      '        <span class="accent" style="font-size:.3rem">{{ state.weather.temp }}℃</span>',
-      '      </div>',
-      '      <div class="weather-now__meta">',
-      '        <span class="chip"><rw-icon name="sun" :size="16"></rw-icon>{{ state.weather.low }}~{{ state.weather.high }}℃</span>',
-      '        <span class="chip">湿度 {{ state.weather.humidity }}%</span>',
-      '        <span class="chip">{{ state.weather.wind }}</span>',
-      '        <span class="chip" :class="state.weather.aqi <= 50 ? \'chip--ok\' : \'chip--warn\'">AQI {{ state.weather.aqi }}</span>',
-      '      </div>',
-      '    </card-panel>',
+        /* ---------- 实时指标 ---------- */
+        '<section class="metric-row">' +
+          '<div v-for="m in metrics" :key="m.key" class="metric" :class="\'tone-\' + m.tone">' +
+            '<div class="metric-ico"><c-icon :name="m.key" :size="22"></c-icon></div>' +
+            '<div class="metric-val"><b>{{ m.value }}</b><i>{{ m.unit }}</i></div>' +
+            '<div class="metric-label">{{ m.label }}</div>' +
+            '<div v-if="m.sub" class="metric-sub">{{ m.sub }}</div>' +
+          '</div>' +
+        '</section>' +
 
-      /* ---------- 仪表：速度 / 电量 / 油量 ---------- */
-      '    <card-panel class="col-6" title="行车仪表" icon="car">',
-      '      <div class="gauges">',
-      '        <div class="gauge">',
-      '          <div class="gauge-ring" :style="{ \'--pct\': speedPct + \'%\', \'--ring-color\': \'#56a0ff\' }">',
-      '            <span class="gauge-ring__inner">',
-      '              <span class="gauge-ring__val">{{ state.speed }}</span>',
-      '              <span class="gauge-ring__unit">km/h</span>',
-      '            </span>',
-      '          </div>',
-      '          <span class="gauge__label">车速</span>',
-      '        </div>',
-      '        <div class="gauge">',
-      '          <div class="gauge-ring" :style="{ \'--pct\': battPct + \'%\', \'--ring-color\': battPct > 20 ? \'#22c55e\' : \'#ef4444\' }">',
-      '            <span class="gauge-ring__inner">',
-      '              <span class="gauge-ring__val">{{ battPct }}</span>',
-      '              <span class="gauge-ring__unit">% 电量</span>',
-      '            </span>',
-      '          </div>',
-      '          <span class="gauge__label">续航 {{ state.vehicle.range }} km</span>',
-      '        </div>',
-      '        <div class="gauge">',
-      '          <div class="gauge-ring" :style="{ \'--pct\': fuelPct + \'%\', \'--ring-color\': \'#f59e0b\' }">',
-      '            <span class="gauge-ring__inner">',
-      '              <span class="gauge-ring__val">{{ fuelPct }}</span>',
-      '              <span class="gauge-ring__unit">% 油量</span>',
-      '            </span>',
-      '          </div>',
-      '          <span class="gauge__label">{{ state.vehicle.charging ? \'充电中\' : \'混动油箱\' }}</span>',
-      '        </div>',
-      '      </div>',
-      '      <div class="strip">',
-      '        <span class="chip" :class="state.gear === \'D\' ? \'chip--accent\' : \'chip--ok\'">挡位 {{ state.gear }}</span>',
-      '        <span class="chip">{{ driveModeText }}</span>',
-      '        <span class="chip">胎压 {{ state.vehicle.tirePressure.join(\'/\') }} bar</span>',
-      '      </div>',
-      '    </card-panel>',
+        /* ---------- P 挡完整布局：时间 + 天气 + 快捷 ---------- */
+        '<template v-if="!driving">' +
+          '<section class="home-row">' +
+            '<div class="card time-card">' +
+              '<c-icon name="time" :size="22"></c-icon>' +
+              '<b class="tc-time">{{ S.clock.time }}</b>' +
+              '<span class="tc-date">{{ S.clock.date }}</span>' +
+              '<span class="tc-tz">中国标准时间 UTC+8</span>' +
+            '</div>' +
+            '<div class="card weather-card" @click="go(\'nav\')">' +
+              '<div class="wc-top">' +
+                '<c-icon :name="w.icon" :size="34"></c-icon>' +
+                '<div><b>{{ w.now }}°</b><span>{{ w.text }}</span></div>' +
+              '</div>' +
+              '<div class="wc-city">{{ w.city }}</div>' +
+              '<div class="wc-meta"><span>最高 {{ w.high }}°</span><span>最低 {{ w.low }}°</span><span>AQI {{ w.aqi }} {{ w.aqiText }}</span></div>' +
+            '</div>' +
+          '</section>' +
 
-      /* ---------- 快捷控制 ---------- */
-      '    <card-panel class="col-6" title="快捷控制" icon="settings">',
-      '      <div class="quick">',
-      '        <button class="quick__btn" :class="state.climate.power ? \'is-on\' : \'\'" @click="open(\'climate\')"',
-      '                aria-label="空调">',
-      '          <rw-icon name="climate" :size="34"></rw-icon><span>{{ state.climate.tempL }}℃</span>',
-      '        </button>',
-      '        <button class="quick__btn" :class="state.media.playing ? \'is-on\' : \'\'" @click="open(\'media\')"',
-      '                aria-label="多媒体">',
-      '          <rw-icon name="media" :size="34"></rw-icon><span>{{ state.media.playing ? \'播放中\' : \'音乐\' }}</span>',
-      '        </button>',
-      '        <button class="quick__btn" :class="state.settings.sunroof > 0 ? \'is-on\' : \'\'" @click="toggleSunroof"',
-      '                aria-label="天窗">',
-      '          <rw-icon name="sunroof" :size="34"></rw-icon><span>天窗</span>',
-      '        </button>',
-      '        <button class="quick__btn" :class="state.vehicle.locked ? \'is-on\' : \'\'" @click="lockToggle"',
-      '                aria-label="车门锁">',
-      '          <rw-icon name="lock" :size="34"></rw-icon><span>{{ state.vehicle.locked ? \'已锁\' : \'解锁\' }}</span>',
-      '        </button>',
-      '        <button class="quick__btn" @click="open(\'surround\')" aria-label="全景影像">',
-      '          <rw-icon name="camera" :size="34"></rw-icon><span>全景</span>',
-      '        </button>',
-      '        <button class="quick__btn" @click="open(\'vehicle\')" aria-label="车辆设置">',
-      '          <rw-icon name="car" :size="34"></rw-icon><span>车辆</span>',
-      '        </button>',
-      '        <button class="quick__btn" @click="open(\'settings\')" aria-label="系统设置">',
-      '          <rw-icon name="settings" :size="34"></rw-icon><span>设置</span>',
-      '        </button>',
-      '        <button class="quick__btn" :class="state.theme === \'light\' ? \'is-on\' : \'\'" @click="toggleTheme"',
-      '                aria-label="主题切换">',
-      '          <rw-icon name="sun" :size="34"></rw-icon><span>{{ state.theme === \'light\' ? \'浅色\' : \'深色\' }}</span>',
-      '        </button>',
-      '      </div>',
-      '    </card-panel>',
+          '<section class="card quick-card">' +
+            '<div class="quick-grid">' +
+              '<button class="quick" @click="go(\'climate\')"><c-icon name="climate" :size="24"></c-icon><span>空调</span><small>{{ S.data.climate.tempL }}°</small></button>' +
+              '<button class="quick" @click="go(\'media\')"><c-icon name="media" :size="24"></c-icon><span>音乐</span><small>{{ S.data.media.playing ? \'播放中\' : \'暂停\' }}</small></button>' +
+              '<button class="quick" @click="go(\'vehicle\')"><c-icon name="car" :size="24"></c-icon><span>车辆</span><small>{{ driveModeText }}</small></button>' +
+              '<button class="quick" @click="go(\'surround\')"><c-icon name="camera" :size="24"></c-icon><span>360 全景</span><small>全景影像</small></button>' +
+            '</div>' +
+          '</section>' +
+        '</template>' +
 
-      '  </div>',
+        /* ---------- 安全状态 ---------- */
+        '<section class="card status-card" :class="{ \'has-alert\': statusList.length }">' +
+          '<div v-if="!statusList.length" class="sc-ok"><c-icon name="check" :size="20"></c-icon><span>车辆状态正常 · {{ S.data.vehicle.lock ? \'已上锁\' : \'未上锁\' }}</span></div>' +
+          '<ul v-else class="sc-list">' +
+            '<li v-for="(s, i) in statusList" :key="i"><c-icon :name="s.icon" :size="18"></c-icon>{{ s.text }}</li>' +
+          '</ul>' +
+          '<button class="sc-sim" @click="openSim"><c-icon name="gear" :size="16"></c-icon>驾驶状态模拟器</button>' +
+        '</section>' +
       '</div>'
-    ].join('\n'),
-    computed2: null
   };
 
-  /* 追加计算属性（保持对象字面量可读性） */
-  global.HomeView.computed.driveModeText = function () {
-    var map = { comfort: '舒适模式', eco: '节能模式', sport: '运动模式', snow: '雪地模式' };
-    return map[this.state.driveMode] || '舒适模式';
-  };
+  global.CHomeView = home;
 })(window);

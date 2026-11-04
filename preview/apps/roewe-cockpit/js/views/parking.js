@@ -1,153 +1,195 @@
 /*!
- * 泊车辅助模块
- * 规格：车位识别、方向盘诱导、轨迹线、倒车雷达、自动泊车流程
+ * js/views/parking.js — 模块 7b：泊车辅助
+ * 前后雷达距离条、侧面距离、障碍物方位告警动画、倒车轨迹线、自动泊车就绪状态。
+ * 安全规则 2：本页为驾驶辅助视图，顶栏车速/挡位/警告保持可见。
+ * 安全规则 1：D 挡进入本页会被挡位状态机拦截并提示。
  */
 (function (global) {
   'use strict';
 
-  var STEPS = [
-    { key: 'search', label: '搜寻车位', hint: '低速沿车位侧行驶，雷达扫描两侧空间' },
-    { key: 'confirm', label: '确认车位', hint: '识别到侧方车位 5.4m，是否开始泊入？' },
-    { key: 'reverse', label: '倒车入位', hint: '方向盘自动左打满，请松开双手' },
-    { key: 'straight', label: '回正停车', hint: '车身已正，继续倒车至止停线' },
-    { key: 'done', label: '泊车完成', hint: '已挂 P 挡，驻车制动已启用' }
-  ];
-
-  global.ParkingView = {
-    name: 'ParkingView',
-    inject: ['ctx'],
-    data: function () {
-      return {
-        steps: STEPS,
-        step: 0,
-        slot: { length: 5.4, width: 2.3, side: 'right' }
-      };
-    },
+  var parking = {
+    data: function () { return { S: global.CockpitState, guide: true, beep: false }; },
     computed: {
-      state: function () { return this.ctx.state; },
-      sc: function () { return this.ctx.state.surround; },
-      current: function () { return this.steps[this.step]; },
-      progressPct: function () { return Math.round((this.step / (this.steps.length - 1)) * 100); },
-      minDist: function () { return Math.min.apply(null, this.sc.radar || [999]); },
-      alarmText: function () {
-        var d = this.minDist;
-        return d <= 40 ? '停车' : d <= 80 ? '警示' : d <= 140 ? '注意' : '安全';
+      p: function () { return this.S.data.parking; },
+      front: function () { return (this.p.radar && this.p.radar.front) || []; },
+      rear: function () { return (this.p.radar && this.p.radar.rear) || []; },
+      obs: function () { return this.p.obstacle || { active: false, level: 'ok', distance: 999, bearing: '' }; },
+      nearest: function () {
+        var all = this.front.concat(this.rear);
+        return all.length ? Math.min.apply(null, all) : 999;
       },
-      steerAngle: function () {
-        var map = [0, 0, -1, 0.4, 0];
-        return (map[this.step] || 0) * 420;
+      level: function () {
+        var d = this.nearest;
+        if (d < 60) return 'bad';
+        if (d < 110) return 'warn';
+        return 'ok';
       },
-      restricted: function () { return this.ctx.state.isDriving(); }
+      levelText: function () {
+        return this.level === 'bad' ? '距离过近，请立即停车' : (this.level === 'warn' ? '请注意周边障碍物' : '周边安全');
+      },
+      bearingText: function () {
+        var m = {
+          'left-front': '左前方', 'front': '正前方', 'right-front': '右前方',
+          'left-rear': '左后方', 'rear': '正后方', 'right-rear': '右后方',
+          'left': '左侧', 'right': '右侧'
+        };
+        return m[this.obs.bearing] || '车后';
+      },
+      /* 每格代表 20cm，上限 5 格 */
+      frontBars: function () { return this.decorate(this.front); },
+      rearBars: function () { return this.decorate(this.rear); },
+      sideList: function () {
+        var s = this.p.side || {};
+        return [
+          { key: 'left', label: '左侧', value: s.left },
+          { key: 'right', label: '右侧', value: s.right }
+        ].map(function (x) { return { key: x.key, label: x.label, value: x.value, tone: x.value < 60 ? 'bad' : (x.value < 110 ? 'warn' : 'ok') }; });
+      }
     },
     mounted: function () {
       var self = this;
-      var R = global.RoeweVoiceRegistry;
-      R.say('开始泊车', ['开始泊车', '自动泊车', '泊入车位'], function () { self.next(); }, '泊车');
-      R.say('退出泊车', ['退出泊车', '结束泊车'], function () { self.reset(); }, '泊车');
-      R.say('泊车下一步', ['下一步', '继续泊车'], function () { self.next(); }, '泊车');
+      this._uns = [
+        global.CockpitVoiceRegistry.register({
+          id: 'parking.open', scope: 'parking', label: '打开泊车辅助',
+          phrases: ['打开泊车辅助', '自动泊车', '帮我停车', '泊车'],
+          handler: function () { global.CockpitRouter.go('parking'); return '已打开泊车辅助。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'parking.auto', scope: 'parking', label: '自动泊车就绪',
+          phrases: ['开始自动泊车', '自动泊车开始', '泊入车位'],
+          handler: function () {
+            if (self.S.gear !== 'P') { global.CockpitSafety.warn('请先挂 P 挡再使用自动泊车', 'parking'); return '请先挂 P 挡。'; }
+            return self.p.autoParkReady ? '自动泊车已就绪，请松开方向盘。' : '当前环境不满足自动泊车条件。';
+          }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'parking.guide', scope: 'parking', label: '倒车轨迹线',
+          phrases: ['打开轨迹线', '关闭轨迹线', '显示倒车轨迹'],
+          handler: function () { self.guide = !self.guide; return self.guide ? '倒车轨迹线已显示。' : '倒车轨迹线已关闭。'; }
+        })
+      ];
+      this._beep = global.setInterval(function () {
+        self.beep = self.nearest < 60;
+      }, 700);
     },
     beforeUnmount: function () {
-      this.sc.autoParking = false;
+      (this._uns || []).forEach(function (fn) { fn(); });
+      if (this._beep) global.clearInterval(this._beep);
     },
     methods: {
-      next: function () {
-        if (this.restricted) {
-          this.ctx.toast.restricted();
+      decorate: function (arr) {
+        return (arr || []).map(function (d, i) {
+          return {
+            i: i, d: d,
+            pct: Math.max(6, Math.min(100, 100 - (d / 220) * 100)),
+            tone: d < 60 ? 'bad' : (d < 110 ? 'warn' : 'ok')
+          };
+        });
+      },
+      autoPark: function () {
+        if (this.S.gear !== 'P') {
+          global.CockpitSafety.warn('请先挂 P 挡再使用自动泊车', 'parking');
           return;
         }
-        if (this.step >= this.steps.length - 1) {
-          this.ctx.toast.show('泊车已完成', 'info');
-          return;
-        }
-        this.step += 1;
-        this.sc.autoParking = true;
-        var s = this.current;
-        this.ctx.toast.show(s.label + '：' + s.hint, 'info');
-        if (s.key === 'done') {
-          this.ctx.simulator.setGear('P');
-          this.sc.autoParking = false;
-        }
-      },
-      reset: function () {
-        this.step = 0;
-        this.sc.autoParking = false;
-        this.ctx.toast.show('已退出泊车辅助', 'info');
-      },
-      jump: function (i) {
-        this.step = i;
+        global.CockpitSafety.notify({
+          text: this.p.autoParkReady ? '自动泊车已就绪，请松开方向盘' : '当前环境不满足自动泊车条件',
+          icon: 'parking',
+          level: this.p.autoParkReady ? 'ok' : 'warn'
+        });
       }
     },
-    template: [
-      '<div class="page-scroll">',
-      '  <div class="grid">',
+    template:
+      '<div class="view view-parking">' +
+        '<header class="page-head">' +
+          '<button class="ph-back" aria-label="返回主页" @click="$root.go(\'home\')"><c-icon name="back" :size="22"></c-icon></button>' +
+          '<h2 class="ph-title">泊车辅助</h2>' +
+          '<span class="ph-status" :class="level"><c-icon name="warn" :size="16"></c-icon>{{ nearest >= 999 ? \'--\' : nearest + \' cm\' }}</span>' +
+        '</header>' +
 
-      /* ---------- 泊车舞台 ---------- */
-      '    <card-panel class="col-4" title="泊车辅助 · 侧方车位" icon="parking">',
-      '      <div class="parking-stage">',
-      '        <div class="parking-stripes"></div>',
-      '        <div class="slot" :class="step >= 1 ? \'is-detected\' : \'\'">',
-      '          <span class="slot__label" v-if="step >= 1">识别车位 {{ slot.length }}m</span>',
-      '          <span class="slot__label" v-else>搜寻中…</span>',
-      '        </div>',
-      '        <div class="parking-car" :style="{ transform: \'translate(\' + (step * 12) + \'%, \' + (-step * 6) + \'%) rotate(\' + (-step * 7) + \'deg)\' }">',
-      '          <svg viewBox="0 0 80 150" aria-label="车辆">',
-      '            <rect x="8" y="4" width="64" height="142" rx="20" fill="rgba(86,160,255,.22)" stroke="rgba(120,180,255,.85)" stroke-width="3"/>',
-      '            <rect x="18" y="24" width="44" height="40" rx="10" fill="rgba(220,235,255,.28)"/>',
-      '            <rect x="18" y="92" width="44" height="34" rx="9" fill="rgba(220,235,255,.18)"/>',
-      '          </svg>',
-      '          <div class="steer" :style="{ transform: \'rotate(\' + steerAngle + \'deg)\' }"><rw-icon name="wheel" :size="34"></rw-icon></div>',
-      '        </div>',
-      '        <svg v-if="sc.trajectory" class="trajectory" viewBox="0 0 200 300" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%">',
-      '          <path d="M100 292 C100 220 140 190 168 150" fill="none" stroke="#22c55e" stroke-width="5" opacity=".75"/>',
-      '          <path d="M100 292 C100 240 120 220 140 200" fill="none" stroke="#f59e0b" stroke-width="5" opacity=".7"/>',
-      '        </svg>',
-      '        <div class="alarm-banner" :class="minDist <= 80 ? \'is-alarm\' : \'\'" style="position:absolute;left:.2rem;right:.2rem;bottom:.2rem">',
-      '          <rw-icon name="warn" :size="26"></rw-icon>',
-      '          <span class="grow">最近障碍 {{ minDist }} cm · {{ alarmText }}</span>',
-      '        </div>',
-      '      </div>',
-      '      <div class="bar"><div class="bar__fill" :style="{ width: progressPct + \'%\' }"></div></div>',
-      '      <div class="strip"><span class="chip chip--accent">泊车进度 {{ progressPct }}%</span>',
-      '        <span class="chip">{{ sc.autoParking ? \'自动泊车中\' : \'待启动\' }}</span></div>',
-      '    </card-panel>',
+        /* ---------- 雷达总览 ---------- */
+        '<section class="card radar-card" :class="level">' +
+          '<div class="radar-stage" :class="{ alarm: beep }">' +
+            '<div class="rs-row rs-front">' +
+              '<span v-for="b in frontBars" :key="\'f\' + b.i" class="rs-cell" :class="b.tone" :style="{ opacity: b.pct / 100 }"></span>' +
+            '</div>' +
+            '<div class="rs-car"><c-icon name="car" :size="46"></c-icon></div>' +
+            '<div class="rs-row rs-rear">' +
+              '<span v-for="b in rearBars" :key="\'r\' + b.i" class="rs-cell" :class="b.tone" :style="{ opacity: b.pct / 100 }"></span>' +
+            '</div>' +
+          '</div>' +
+          '<p class="radar-msg" :class="level">{{ levelText }}</p>' +
+        '</section>' +
 
-      /* ---------- 流程 ---------- */
-      '    <card-panel class="col-2" title="泊车流程" icon="list">',
-      '      <ul class="list">',
-      '        <li v-for="(s, i) in steps" :key="s.key">',
-      '          <button class="list__item list__item--btn" style="width:100%" :class="i === step ? \'is-active\' : \'\'" @click="jump(i)">',
-      '            <span class="track-item__idx">{{ i + 1 }}</span>',
-      '            <span class="list__main"><span class="list__title">{{ s.label }}</span>',
-      '              <span class="list__sub">{{ s.hint }}</span></span>',
-      '            <rw-icon v-if="i < step" name="check" :size="22"></rw-icon>',
-      '          </button>',
-      '        </li>',
-      '      </ul>',
-      '    </card-panel>',
+        /* ---------- 障碍物告警 ---------- */
+        '<section v-if="obs.active" class="card obs-card" :class="obs.level">' +
+          '<div class="obs-hero">' +
+            '<span class="obs-pulse"></span>' +
+            '<c-icon name="warn" :size="30"></c-icon>' +
+            '<div class="obs-text"><b>{{ bearingText }}有障碍物</b><small>距离约 {{ obs.distance }} cm，请减速停车</small></div>' +
+          '</div>' +
+          '<div class="chip-row"><span class="mini-tag bad">报警中</span><span class="mini-tag">{{ p.obstacle.bearing }}</span></div>' +
+        '</section>' +
 
-      /* ---------- 控制 ---------- */
-      '    <card-panel class="col-6" title="泊车控制" icon="wheel">',
-      '      <div class="alarm-banner" v-if="restricted" :class="\'is-warn\'">',
-      '        <rw-icon name="warn" :size="28"></rw-icon>',
-      '        <span class="grow">行车中，泊车辅助不可用（{{ state.speed }} km/h）</span>',
-      '        <span class="tag tag--warn">请停车挂 P 挡</span>',
-      '      </div>',
-      '      <div class="strip">',
-      '        <button class="btn btn--primary" @click="next" :disabled="restricted">',
-      '          <rw-icon name="parking" :size="22"></rw-icon>{{ step >= steps.length - 1 ? \'完成\' : \'下一步\' }}',
-      '        </button>',
-      '        <button class="btn btn--ghost" @click="reset">重置泊车</button>',
-      '        <button class="btn" :class="sc.trajectory ? \'btn--on\' : \'btn--ghost\'" @click="sc.trajectory = !sc.trajectory">轨迹线</button>',
-      '        <button class="btn btn--ghost" @click="ctx.router.push(\'surround\')">返回 360° 全景</button>',
-      '      </div>',
-      '      <div class="card__hint">{{ current.label }} · {{ current.hint }}</div>',
-      '      <div class="kv"><span class="muted">车位尺寸</span><span>{{ slot.length }} × {{ slot.width }} m（{{ slot.side === \'right\' ? \'右侧\' : \'左侧\' }}）</span></div>',
-      '      <div class="kv"><span class="muted">方向盘转角</span><span>{{ steerAngle }}°</span></div>',
-      '      <div class="kv"><span class="muted">驻车制动</span><span>{{ step >= steps.length - 1 ? \'已启用\' : \'未启用\' }}</span></div>',
-      '    </card-panel>',
+        /* ---------- 雷达明细 ---------- */
+        '<section class="card">' +
+          '<h3 class="card-title">前雷达</h3>' +
+          '<div class="bar-list">' +
+            '<div v-for="b in frontBars" :key="\'fb\' + b.i" class="bar-row">' +
+              '<span class="br-idx">{{ b.i + 1 }}</span>' +
+              '<div class="br-track"><i :class="b.tone" :style="{ width: b.pct + \'%\' }"></i></div>' +
+              '<span class="br-val">{{ b.d }} cm</span>' +
+            '</div>' +
+          '</div>' +
+          '<h3 class="card-title mt">后雷达</h3>' +
+          '<div class="bar-list">' +
+            '<div v-for="b in rearBars" :key="\'rb\' + b.i" class="bar-row">' +
+              '<span class="br-idx">{{ b.i + 1 }}</span>' +
+              '<div class="br-track"><i :class="b.tone" :style="{ width: b.pct + \'%\' }"></i></div>' +
+              '<span class="br-val">{{ b.d }} cm</span>' +
+            '</div>' +
+          '</div>' +
+        '</section>' +
 
-      '  </div>',
+        /* ---------- 侧面 ---------- */
+        '<section class="card">' +
+          '<h3 class="card-title">侧面距离</h3>' +
+          '<div class="side-grid">' +
+            '<div v-for="s in sideList" :key="s.key" class="side-cell" :class="s.tone">' +
+              '<small>{{ s.label }}</small><b>{{ s.value }} cm</b>' +
+            '</div>' +
+          '</div>' +
+        '</section>' +
+
+        /* ---------- 倒车轨迹与自动泊车 ---------- */
+        '<section class="card">' +
+          '<div class="head-row"><h3 class="card-title">倒车轨迹线</h3>' +
+            '<button class="sw" :class="{ on: guide }" @click="guide = !guide"><i></i></button></div>' +
+          '<div class="traj" :class="{ off: !guide }">' +
+            '<svg viewBox="0 0 320 200" preserveAspectRatio="none">' +
+              '<rect width="320" height="200" fill="#0d1822"/>' +
+              '<g v-if="guide" stroke="#2ee6a8" stroke-width="3" fill="none" opacity="0.9">' +
+                '<path d="M60 200 L132 60"/><path d="M260 200 L188 60"/>' +
+              '</g>' +
+              '<g v-if="guide" stroke="#e8c05a" stroke-width="2" fill="none" stroke-dasharray="6 6" opacity="0.9">' +
+                '<path d="M100 200 L152 60"/><path d="M220 200 L168 60"/>' +
+              '</g>' +
+              '<g v-if="guide" stroke="#ffffff" stroke-width="1.5" fill="none" opacity="0.35">' +
+                '<path d="M88 160 H232"/><path d="M104 128 H216"/><path d="M120 100 H200"/>' +
+              '</g>' +
+              '<rect x="140" y="150" width="40" height="50" rx="6" fill="#1b2c3d" stroke="#3a5872"/>' +
+            '</svg>' +
+            '<span v-if="!guide" class="traj-off-text">轨迹线已关闭</span>' +
+          '</div>' +
+          '<div class="park-actions">' +
+            '<button class="btn" @click="autoPark">' +
+              '<c-icon name="parking" :size="18"></c-icon>自动泊车' +
+            '</button>' +
+            '<span class="mini-tag" :class="p.autoParkReady ? \'ok\' : \'warn\'">{{ p.autoParkReady ? \'环境就绪\' : \'环境不满足\' }}</span>' +
+          '</div>' +
+          '<p class="hint">倒车影像与雷达数据均为模拟，仅用于功能演示。</p>' +
+        '</section>' +
       '</div>'
-    ].join('\n')
   };
+
+  global.CParkingView = parking;
 })(window);

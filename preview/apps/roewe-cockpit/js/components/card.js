@@ -1,51 +1,33 @@
 /*!
- * 卡片容器组件：统一车载级卡片外观 + 语音指令绑定（可见即可说）
+ * js/components/card.js — 通用卡片容器（车载卡片化设计，点击可带语音指令注册）
  */
 (function (global) {
   'use strict';
 
-  global.CardPanel = {
-    name: 'CardPanel',
+  var card = {
     props: {
       title: { type: String, default: '' },
       icon: { type: String, default: '' },
-      span: { type: [Number, String], default: 1 },
-      openable: { type: Boolean, default: false },
-      view: { type: String, default: '' },
-      tone: { type: String, default: '' },
-      say: { type: String, default: '' },
-      sayPhrases: { type: Array, default: function () { return []; } }
+      tone: { type: String, default: 'default' },   // default | accent | danger | success
+      dense: { type: Boolean, default: false },
+      locked: { type: Boolean, default: false },
+      clickable: { type: Boolean, default: false }
     },
-    inject: ['ctx'],
+    emits: ['tap'],
+    template:
+      '<section class="card" :class="[toneClass, { \'is-dense\': dense, \'is-locked\': locked, \'is-clickable\': clickable }]" @click="clickable && $emit(\'tap\')">' +
+        '<header v-if="title || $slots.header" class="card-head">' +
+          '<c-icon v-if="icon" :name="icon" :size="22"></c-icon>' +
+          '<h3 v-if="title" class="card-title">{{ title }}</h3>' +
+          '<slot name="header"></slot>' +
+        '</header>' +
+        '<div class="card-body"><slot></slot></div>' +
+        '<footer v-if="$slots.footer" class="card-foot"><slot name="footer"></slot></footer>' +
+      '</section>',
     computed: {
-      cls: function () {
-        return [
-          'card',
-          this.tone ? 'card--' + this.tone : '',
-          this.openable ? 'card--tappable' : ''
-        ];
-      }
-    },
-    mounted: function () {
-      if (this.say) {
-        var self = this;
-        global.RoeweVoiceRegistry.say(this.say, this.sayPhrases, function () { self.activate(); });
-      }
-    },
-    methods: {
-      activate: function () {
-        if (this.openable && this.view) this.ctx.router.push(this.view);
-      }
-    },
-    template: [
-      '<section :class="cls" @click="activate">',
-      '  <header v-if="title" class="card__head">',
-      '    <rw-icon v-if="icon" :name="icon" :size="26"></rw-icon>',
-      '    <h3>{{ title }}</h3>',
-      '    <slot name="head-right"></slot>',
-      '  </header>',
-      '  <div class="card__body"><slot></slot></div>',
-      '</section>'
-    ].join('\n')
+      toneClass: function () { return 'tone-' + this.tone; }
+    }
   };
+
+  global.CCard = card;
 })(window);

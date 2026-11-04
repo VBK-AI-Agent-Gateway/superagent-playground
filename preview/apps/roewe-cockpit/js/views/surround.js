@@ -1,235 +1,227 @@
 /*!
- * 360° 全景影像模块
- * 规格：四路摄像头切换、视角切换、雷达分区、障碍物报警动画、轨迹线
+ * js/views/surround.js — 模块 7a：360° 全景影像
+ * 通过 Canvas 绘制等距柱状投影的伪全景视图，支持拖动环视与四路视角切换。
+ * 安全规则 2：本页为全屏驾驶辅助视图，顶栏车速/挡位/警告保持可见。
+ * 安全规则 1：D 挡进入本页会被挡位状态机拦截。
  */
 (function (global) {
   'use strict';
 
-  var CAMS = [
-    { key: 'front', label: '前视', icon: 'camera' },
-    { key: 'rear', label: '后视', icon: 'camera' },
-    { key: 'left', label: '左视', icon: 'camera' },
-    { key: 'right', label: '右视', icon: 'camera' },
-    { key: 'top', label: '俯视', icon: 'compass' }
-  ];
-  var VIEWS = [
-    { key: '3d', label: '3D 环视' },
-    { key: '2d', label: '2D 俯视' },
-    { key: 'wide', label: '超广角' }
+  var CAMERAS = [
+    { key: 'front', label: '前视', yaw: 0 },
+    { key: 'right', label: '右视', yaw: 90 },
+    { key: 'rear', label: '后视', yaw: 180 },
+    { key: 'left', label: '左视', yaw: 270 }
   ];
 
-  global.SurroundView = {
-    name: 'SurroundView',
-    inject: ['ctx'],
+  var surround = {
     data: function () {
-      return {
-        cams: CAMS,
-        views: VIEWS
-      };
+      return { S: global.CockpitState, yaw: 0, pitch: 0, dragging: false, autoSpin: true, cam: 'front' };
     },
     computed: {
-      state: function () { return this.ctx.state; },
-      sc: function () { return this.ctx.state.surround; },
-      restricted: function () { return this.ctx.state.isDriving(); },
-      /* 雷达六点：前左、前右、后左、后右、侧左、侧右（cm） */
-      zones: function () {
-        var r = this.sc.radar || [];
-        return [
-          { key: 'fl', label: '前左', val: r[0] },
-          { key: 'fr', label: '前右', val: r[1] },
-          { key: 'rl', label: '后左', val: r[2] },
-          { key: 'rr', label: '后右', val: r[3] },
-          { key: 'sl', label: '侧左', val: r[4] },
-          { key: 'sr', label: '侧右', val: r[5] }
-        ];
+      p: function () { return this.S.data.parking; },
+      heading: function () { return ((Math.round(this.yaw) % 360) + 360) % 360; },
+      compass: function () {
+        var dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+        return dirs[Math.round(this.heading / 45) % 8];
       },
-      minDist: function () {
-        return Math.min.apply(null, this.sc.radar || [999]);
+      cams: function () { return CAMERAS; },
+      nearest: function () {
+        var all = (this.p.radar.front || []).concat(this.p.radar.rear || []);
+        return all.length ? Math.min.apply(null, all) : 999;
       },
-      alarmLevel: function () {
-        var d = this.minDist;
-        if (d <= 40) return 3;
-        if (d <= 80) return 2;
-        if (d <= 140) return 1;
-        return 0;
-      },
-      alarmText: function () {
-        var map = { 0: '安全', 1: '注意', 2: '警示', 3: '危险' };
-        return map[this.alarmLevel];
-      },
-      alarmClass: function () {
-        return this.alarmLevel >= 3 ? 'is-alarm' : this.alarmLevel >= 2 ? 'is-warn' : '';
-      },
-      obstacles: function () {
-        var labels = { car: '后方车辆', pillar: '立柱 / 墙角', pedestrian: '行人', wall: '墙壁' };
-        return ((global.ROEWE_MOCK && global.ROEWE_MOCK.obstacles) || []).map(function (o) {
-          return {
-            id: o.id,
-            label: labels[o.type] || o.type,
-            type: o.type,
-            x: o.x,
-            y: o.y,
-            level: o.level
-          };
-        });
-      }
-    },
-    created: function () {
-      var self = this;
-      /* 雷达随车速变化：低速时距离收紧，形成实时报警动画 */
-      this._timer = setInterval(function () {
-        var s = self.state;
-        var base = s.speed > 0 ? Math.max(24, 150 - s.speed * 3) : 150;
-        self.sc.radar = self.sc.radar.map(function (v, i) {
-          var jitter = (Math.random() - 0.45) * 24;
-          var val = Math.max(18, Math.min(200, i === 0 ? base + jitter : v + jitter * 0.6));
-          return Math.round(val);
-        });
-        self.sc.alarmLevel = self.alarmLevel;
-      }, 700);
-    },
-    beforeUnmount: function () {
-      clearInterval(this._timer);
+      nearestText: function () { return this.nearest >= 999 ? '无遮挡' : this.nearest + ' cm'; }
     },
     mounted: function () {
       var self = this;
-      var R = global.RoeweVoiceRegistry;
-      R.say('切换摄像头', ['切换到前视', '切换摄像头', '看后面', '看左侧'], function () { self.setCam('front'); }, '全景');
-      R.say('切换视角', ['切换到 2D 视角', '3D 环视', '切换视角'], function () { self.setView('3d'); }, '全景');
-      R.say('轨迹线', ['打开轨迹线', '关闭轨迹线'], function () { self.sc.trajectory = !self.sc.trajectory; }, '全景');
-      R.say('自动泊车', ['开始自动泊车', '自动泊车'], function () { self.toggleParking(); }, '全景');
+      this._uns = [
+        global.CockpitVoiceRegistry.register({
+          id: 'surround.open', scope: 'surround', label: '打开 360 全景',
+          phrases: ['打开360全景', '打开全景', '看全景影像', '三百六十度'],
+          handler: function () { global.CockpitRouter.go('surround'); return '已打开 360 全景影像。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'surround.front', scope: 'surround', label: '前视影像',
+          phrases: ['前视影像', '看前面', '前方画面'],
+          handler: function () { self.look('front'); return '已切换到前视影像。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'surround.rear', scope: 'surround', label: '后视影像',
+          phrases: ['后视影像', '看后面', '后方画面'],
+          handler: function () { self.look('rear'); return '已切换到后视影像。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'surround.left', scope: 'surround', label: '左视影像',
+          phrases: ['左视影像', '看左边'],
+          handler: function () { self.look('left'); return '已切换到左视影像。'; }
+        }),
+        global.CockpitVoiceRegistry.register({
+          id: 'surround.right', scope: 'surround', label: '右视影像',
+          phrases: ['右视影像', '看右边'],
+          handler: function () { self.look('right'); return '已切换到右视影像。'; }
+        })
+      ];
+      this._raf = global.setInterval(function () {
+        if (!self.autoSpin || self.dragging) return;
+        self.yaw = (self.yaw + 0.35) % 360;
+        self.paint();
+      }, 40);
+      this.$nextTick(this.paint);
+    },
+    beforeUnmount: function () {
+      (this._uns || []).forEach(function (fn) { fn(); });
+      if (this._raf) global.clearInterval(this._raf);
     },
     methods: {
-      setCam: function (key) {
-        this.sc.camera = key;
-        this.ctx.toast.show('已切换至' + this.camLabel(key), 'info');
+      look: function (key) {
+        var c = CAMERAS.filter(function (x) { return x.key === key; })[0];
+        if (!c) return;
+        this.cam = key;
+        this.yaw = c.yaw;
+        this.autoSpin = false;
+        this.paint();
       },
-      camLabel: function (key) {
-        var c = CAMS.filter(function (x) { return x.key === key; })[0];
-        return c ? c.label : key;
+      onDown: function (e) { this.dragging = true; this._x = this._pt(e).x; this._y = this._pt(e).y; },
+      onMove: function (e) {
+        if (!this.dragging) return;
+        var pt = this._pt(e);
+        this.yaw = (this.yaw + (this._x - pt.x) * 0.35 + 360) % 360;
+        this.pitch = Math.max(-20, Math.min(20, this.pitch + (this._y - pt.y) * 0.12));
+        this._x = pt.x; this._y = pt.y;
+        this.paint();
       },
-      setView: function (key) {
-        this.sc.view = key;
+      onUp: function () { this.dragging = false; },
+      _pt: function (e) {
+        var t = e.touches && e.touches[0] ? e.touches[0] : e;
+        return { x: t.clientX || 0, y: t.clientY || 0 };
       },
-      zoneClass: function (d) {
-        if (d === undefined || d === null) return '';
-        if (d <= 40) return 'is-alarm';
-        if (d <= 80) return 'is-warn';
-        return '';
-      },
-      toggleParking: function () {
-        if (this.sc.autoParking) {
-          this.sc.autoParking = false;
-          this.ctx.toast.show('已退出自动泊车', 'info');
-          return;
+      paint: function () {
+        var cv = this.$refs.cv;
+        if (!cv) return;
+        var ctx = cv.getContext('2d');
+        if (!ctx) return;
+        var W = cv.width, H = cv.height;
+        var horizon = H * (0.52 + this.pitch / 200);
+        var yaw = this.yaw * Math.PI / 180;
+
+        var sky = ctx.createLinearGradient(0, 0, 0, horizon);
+        sky.addColorStop(0, '#0d1b2a');
+        sky.addColorStop(1, '#274b6d');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, W, horizon);
+
+        var ground = ctx.createLinearGradient(0, horizon, 0, H);
+        ground.addColorStop(0, '#1b2a35');
+        ground.addColorStop(1, '#0a1119');
+        ctx.fillStyle = ground;
+        ctx.fillRect(0, horizon, W, H - horizon);
+
+        /* 远景建筑群：按 yaw 相位循环 */
+        var cols = 26;
+        for (var i = 0; i < cols; i++) {
+          var ang = (i / cols) * Math.PI * 2 + yaw;
+          var sx = ((Math.sin(ang) * 0.5 + 0.5) * W);
+          var depth = (Math.cos(ang) * 0.5 + 0.5);
+          var bh = 40 + depth * (H * 0.34);
+          var bw = W / cols * 1.35;
+          var shade = Math.round(24 + depth * 58);
+          ctx.fillStyle = 'rgb(' + shade + ',' + (shade + 16) + ',' + (shade + 34) + ')';
+          ctx.fillRect(sx - bw / 2, horizon - bh, bw, bh);
+          /* 窗户 */
+          ctx.fillStyle = 'rgba(255,214,140,' + (0.06 + depth * 0.22).toFixed(2) + ')';
+          for (var wy = horizon - bh + 8; wy < horizon - 6; wy += 14) {
+            ctx.fillRect(sx - bw / 2 + 5, wy, bw - 10, 3);
+          }
         }
-        if (this.restricted) {
-          /* 规则 1：行车中不允许启动自动泊车 */
-          this.ctx.toast.restricted();
-          return;
+
+        /* 路面 */
+        ctx.fillStyle = '#16222c';
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        ctx.lineTo(W * 0.34, horizon);
+        ctx.lineTo(W * 0.66, horizon);
+        ctx.lineTo(W, H);
+        ctx.closePath();
+        ctx.fill();
+
+        var lane = ((yaw / (Math.PI * 2)) % 1 + 1) % 1;
+        ctx.strokeStyle = 'rgba(230,240,255,0.55)';
+        ctx.lineWidth = 4;
+        for (var k = 0; k < 6; k++) {
+          var t0 = ((k / 6) + lane * 2) % 1;
+          var t1 = Math.min(1, t0 + 0.09);
+          var y0 = horizon + (H - horizon) * t0 * t0;
+          var y1 = horizon + (H - horizon) * t1 * t1;
+          var xw0 = W * (0.5 - (1 - t0) * 0.0);
+          var spread0 = (y0 - horizon) / (H - horizon) * W * 0.16;
+          var spread1 = (y1 - horizon) / (H - horizon) * W * 0.16;
+          ctx.beginPath();
+          ctx.moveTo(xw0 - spread0, y0);
+          ctx.lineTo(xw0 - spread1, y1);
+          ctx.stroke();
         }
-        this.sc.autoParking = true;
-        this.ctx.toast.show('自动泊车已启动，请松开方向盘', 'info');
-        this.ctx.router.push('parking');
+
+        /* 本车示意 */
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath();
+        ctx.ellipse(W / 2, H * 0.86, W * 0.17, H * 0.045, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#e8f1ff';
+        ctx.beginPath();
+        ctx.moveTo(W / 2, H * 0.70);
+        ctx.lineTo(W / 2 + W * 0.075, H * 0.90);
+        ctx.lineTo(W / 2 - W * 0.075, H * 0.90);
+        ctx.closePath();
+        ctx.fill();
+
+        /* 四角盲区标示 */
+        ctx.strokeStyle = 'rgba(46,230,168,0.55)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 8]);
+        ctx.strokeRect(W * 0.06, H * 0.10, W * 0.88, H * 0.80);
+        ctx.setLineDash([]);
       }
     },
-    template: [
-      '<div class="page-scroll">',
-      '  <div class="grid">',
+    template:
+      '<div class="view view-surround">' +
+        '<header class="page-head">' +
+          '<button class="ph-back" aria-label="返回主页" @click="$root.go(\'home\')"><c-icon name="back" :size="22"></c-icon></button>' +
+          '<h2 class="ph-title">360° 全景影像</h2>' +
+          '<span class="ph-status"><c-icon name="nav" :size="16"></c-icon>{{ compass }} {{ heading }}°</span>' +
+        '</header>' +
 
-      /* ---------- 报警横幅 ---------- */
-      '    <div class="col-6 alarm-banner" :class="alarmLevel >= 2 ? \'is-alarm\' : \'\'" v-if="alarmLevel >= 1" role="status">',
-      '      <rw-icon name="warn" :size="30"></rw-icon>',
-      '      <span class="grow">障碍物接近 · 最近 {{ minDist }} cm（{{ alarmText }}）</span>',
-      '      <span class="tag tag--danger">{{ state.speed }} km/h</span>',
-      '    </div>',
+        '<section class="card pano-card">' +
+          '<canvas ref="cv" class="pano-canvas" width="720" height="520" ' +
+            '@mousedown="onDown" @mousemove="onMove" @mouseup="onUp" @mouseleave="onUp" ' +
+            '@touchstart.prevent="onDown" @touchmove.prevent="onMove" @touchend.prevent="onUp"></canvas>' +
+          '<div class="pano-hud"><span class="hud-dot"></span>拖动画面环视车辆四周</div>' +
+          '<button class="pano-spin" :class="{ on: autoSpin }" @click="autoSpin = !autoSpin">' +
+            '<c-icon name="wave" :size="16"></c-icon>{{ autoSpin ? \'自动环视中\' : \'自动环视\' }}' +
+          '</button>' +
+        '</section>' +
 
-      /* ---------- 全景舞台 ---------- */
-      '    <card-panel class="col-4" :title="\'360° 全景 · \' + camLabel(sc.camera)" icon="camera">',
-      '      <div class="surround-stage">',
-      '        <div class="surround-car" :style="{ transform: \'rotate(\' + (sc.view === \'2d\' ? 0 : sc.camera === \'rear\' ? 180 : sc.camera === \'left\' ? -90 : sc.camera === \'right\' ? 90 : 0) + \'deg)\' }">',
-      '          <svg viewBox="0 0 120 200" aria-label="车辆俯视示意">',
-      '            <rect x="14" y="10" width="92" height="180" rx="26" fill="rgba(86,160,255,.18)" stroke="rgba(86,160,255,.7)" stroke-width="3"/>',
-      '            <rect x="26" y="34" width="68" height="52" rx="14" fill="rgba(200,225,255,.22)"/>',
-      '            <rect x="26" y="118" width="68" height="46" rx="12" fill="rgba(200,225,255,.14)"/>',
-      '            <circle cx="34" cy="14" r="6" fill="#eaf2ff" opacity=".8"/>',
-      '            <circle cx="86" cy="14" r="6" fill="#eaf2ff" opacity=".8"/>',
-      '          </svg>',
-      '          <svg v-if="sc.trajectory" class="trajectory" viewBox="0 0 140 260" aria-hidden="true">',
-      '            <path d="M30 240 L52 100 L88 100 L110 240" fill="none" stroke="#22c55e" stroke-width="4" opacity=".8"/>',
-      '            <path d="M40 180 L100 180" fill="none" stroke="#f59e0b" stroke-width="5" opacity=".85"/>',
-      '            <path d="M22 240 L118 240" fill="none" stroke="#ef4444" stroke-width="6"/>',
-      '          </svg>',
-      '        </div>',
-      '        <div v-for="(o, i) in obstacles" :key="o.id" class="obstacle"',
-      '             :style="{ left: (50 + o.x * 14) + \'%\', top: (12 + o.y * 7) + \'%\',',
-      '                       background: o.level >= 3 ? \'#ef4444\' : o.level === 2 ? \'#f59e0b\' : \'#22c55e\' }"',
-      '             :title="o.type">',
-      '          <rw-icon name="warn" :size="18"></rw-icon>',
-      '        </div>',
-      '        <span class="cam-tabs__label" style="position:absolute;left:.2rem;bottom:.2rem">{{ sc.view.toUpperCase() }} · 轨迹线{{ sc.trajectory ? \'开\' : \'关\' }}</span>',
-      '      </div>',
-      '      <div class="cam-tabs">',
-      '        <button v-for="c in cams" :key="c.key" class="btn btn--sm"',
-      '                :class="sc.camera === c.key ? \'btn--on\' : \'btn--ghost\'" @click="setCam(c.key)">{{ c.label }}</button>',
-      '      </div>',
-      '      <div class="cam-tabs">',
-      '        <button v-for="v in views" :key="v.key" class="btn btn--sm"',
-      '                :class="sc.view === v.key ? \'btn--on\' : \'btn--ghost\'" @click="setView(v.key)">{{ v.label }}</button>',
-      '      </div>',
-      '    </card-panel>',
+        '<section class="card">' +
+          '<h3 class="card-title">视角切换</h3>' +
+          '<div class="cam-grid">' +
+            '<button v-for="c in cams" :key="c.key" class="cam" :class="{ on: cam === c.key }" @click="look(c.key)">' +
+              '<c-icon name="camera" :size="24"></c-icon><span>{{ c.label }}</span>' +
+            '</button>' +
+          '</div>' +
+        '</section>' +
 
-      /* ---------- 雷达 ---------- */
-      '    <card-panel class="col-2" title="泊车雷达" icon="radar" :tone="alarmLevel >= 2 ? \'warn\' : \'\'">',
-      '      <div class="radar-grid">',
-      '        <div v-for="z in zones" :key="z.key" class="radar-zone" :class="zoneClass(z.val)">',
-      '          <span class="radar-zone__label">{{ z.label }}</span>',
-      '          <span class="radar-zone__val">{{ z.val }}<i>cm</i></span>',
-      '        </div>',
-      '      </div>',
-      '      <div class="strip">',
-      '        <span class="chip" :class="alarmLevel >= 3 ? \'chip--danger\' : alarmLevel === 2 ? \'chip--warn\' : \'chip--ok\'">',
-      '          雷达 {{ alarmText }}',
-      '        </span>',
-      '      </div>',
-      '    </card-panel>',
-
-      /* ---------- 障碍物与轨迹控制 ---------- */
-      '    <card-panel class="col-3" title="障碍物识别" icon="warn">',
-      '      <ul class="list">',
-      '        <li v-for="o in obstacles" :key="o.id" class="list__item" style="flex-direction:row">',
-      '          <span class="dot" :style="{ background: o.level >= 3 ? \'#ef4444\' : o.level === 2 ? \'#f59e0b\' : \'#22c55e\' }"></span>',
-      '          <span class="list__main">',
-      '            <span class="list__title">{{ o.label }}</span>',
-      '            <span class="list__sub">方位 {{ o.x }}m · 距离 {{ o.y }}m</span>',
-      '          </span>',
-      '          <span class="chip" :class="o.level >= 3 ? \'chip--danger\' : o.level === 2 ? \'chip--warn\' : \'chip--ok\'">',
-      '            {{ o.level >= 3 ? \'高\' : o.level === 2 ? \'中\' : \'低\' }}风险',
-      '          </span>',
-      '        </li>',
-      '      </ul>',
-      '      <button class="btn btn--sm btn--block" :class="sc.trajectory ? \'btn--on\' : \'btn--ghost\'" @click="sc.trajectory = !sc.trajectory">',
-      '        <rw-icon name="route" :size="20"></rw-icon>动态轨迹线 {{ sc.trajectory ? \'已开启\' : \'已关闭\' }}',
-      '      </button>',
-      '    </card-panel>',
-
-      /* ---------- 自动泊车入口 ---------- */
-      '    <card-panel class="col-3" title="自动泊车" icon="parking" :tone="sc.autoParking ? \'accent\' : \'\'">',
-      '      <div class="center stack" style="align-items:center;gap:.14rem">',
-      '        <div class="voice-orb" :class="sc.autoParking ? \'is-awake\' : \'\'" style="width:1.1rem;height:1.1rem">',
-      '          <rw-icon name="parking" :size="48"></rw-icon>',
-      '        </div>',
-      '        <span class="chip" :class="sc.autoParking ? \'chip--accent\' : \'\'">{{ sc.autoParking ? \'泊车进行中\' : \'待启动\' }}</span>',
-      '        <button class="btn btn--primary btn--block" @click="toggleParking">',
-      '          {{ sc.autoParking ? \'退出自动泊车\' : \'开始自动泊车\' }}',
-      '        </button>',
-      '        <button class="btn btn--ghost btn--sm btn--block" @click="ctx.router.push(\'parking\')">进入泊车辅助页</button>',
-      '      </div>',
-      '      <div class="card__hint" v-if="restricted">行车中不可启动自动泊车，请先停车挂 P 挡</div>',
-      '    </card-panel>',
-
-      '  </div>',
+        '<section class="card">' +
+          '<div class="head-row"><h3 class="card-title">周边距离</h3>' +
+            '<span class="mini-tag" :class="nearest < 60 ? \'bad\' : (nearest < 100 ? \'warn\' : \'ok\')">最近 {{ nearestText }}</span></div>' +
+          '<div class="range-grid">' +
+            '<div class="rg rg-front"><small>前方最近</small><b>{{ Math.min.apply(null, p.radar.front) }} cm</b></div>' +
+            '<div class="rg rg-rear"><small>后方最近</small><b>{{ Math.min.apply(null, p.radar.rear) }} cm</b></div>' +
+            '<div class="rg rg-left"><small>左侧</small><b>{{ p.side.left }} cm</b></div>' +
+            '<div class="rg rg-right"><small>右侧</small><b>{{ p.side.right }} cm</b></div>' +
+          '</div>' +
+          '<p class="hint">全景影像为模拟渲染，仅用于功能演示。</p>' +
+        '</section>' +
       '</div>'
-    ].join('\n')
   };
+
+  global.CSurroundView = surround;
 })(window);

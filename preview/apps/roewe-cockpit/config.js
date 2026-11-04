@@ -1,51 +1,50 @@
 /*!
- * 荣威RX5 网页版车机系统 — 运行时配置
- * ------------------------------------------------------------------
- * 本文件是唯一需要按实际情况修改的配置入口，全部字段都有内置兜底，
- * 不填任何内容也能双击 index.html 直接运行。
+ * config.js — 荣威RX5 网页版车机系统 · 运行期配置
+ * 零构建：所有配置在运行时读取，不参与打包。
+ * 修改本文件后直接刷新 index.html 即可生效。
  */
-window.ROEWE_CONFIG = {
-  /* 高德地图 JS API 2.0 key（可选）
-   * 1) 前往 https://console.amap.com/ 申请「Web端(JS API)」key
-   * 2) 建议同时申请「安全密钥 securityJsCode」（2021-12-02 之后申请的 key 必须配置）
-   * 3) 填入下方后刷新页面，导航模块自动从「内置示意图」切换为真实高德地图
-   */
-  amap: {
-    key: '',
-    securityJsCode: '',
-    version: '2.0',
-    /* 地图加载超时（毫秒），超时自动降级为内置示意图 */
-    timeout: 6000
-  },
+window.COCKPIT_CONFIG = {
+  /* ---------- 高德地图 JS API 2.0 ---------- */
+  // 在 https://console.amap.com/ 申请「Web端(JS API)」Key 后填入。
+  // 留空时系统自动降级为内置示意地图 + 完整路线/车道/路况演示逻辑。
+  amapKey: '',
+  // 高德安全密钥（2021-12-02 之后申请的 Key 需要在控制台配置安全密钥）
+  amapSecurityJsCode: '',
+  // 高德 JS API 版本与插件
+  amapVersion: '2.0',
+  amapPlugins: ['AMap.Driving', 'AMap.Geolocation', 'AMap.PlaceSearch', 'AMap.AutoComplete'],
 
-  /* 设计稿基准：1080 × 1920 竖屏（9:16），rem 适配 */
-  design: {
-    width: 1080,
-    height: 1920,
-    rootFontSize: 100
-  },
-
-  /* 默认车辆与用户信息 */
+  /* ---------- 车辆信息 ---------- */
   vehicle: {
     model: '荣威 RX5',
     plate: '沪A·RX520',
-    vin: 'LSJA24U6XXXXXXXXXX'
+    vin: 'LSJA24U60MN000000',
+    screen: '10.4" 竖屏 1080×1920'
   },
 
-  /* 默认主题：cockpit-dark（原厂深色座舱） / cockpit-light（浅色座舱） */
-  theme: 'dark',
-
-  /* 驾驶状态模拟器初始状态：gear = P | D，speed 单位 km/h */
-  drive: {
-    gear: 'P',
-    speed: 0,
-    /* D 挡行车限制阈值：车速大于该值时娱乐功能受限 */
-    restrictedSpeed: 5
+  /* ---------- 语音助手 ---------- */
+  voice: {
+    // 唤醒词，命中任意一个即进入聆听态
+    wakeWords: ['你好斑马', '你好，斑马', '你好荣威', '你好，荣威', '斑马你好'],
+    // 连续对话：回答后保持聆听窗口（毫秒）
+    continuousWindowMs: 8000,
+    // 普通话优先
+    lang: 'zh-CN'
   },
 
-  /* 内置模拟数据开关（关闭后仍可离线运行，仅用于展示）」 */
-  mock: {
-    /* 天气刷新间隔（毫秒） */
-    weatherInterval: 60000
+  /* ---------- 主题与座舱偏好（可被 localStorage 覆盖） ---------- */
+  defaults: {
+    theme: 'dark',        // dark | light
+    brightness: 80,       // 20 ~ 100
+    volume: 38,
+    units: 'metric'
+  },
+
+  /* ---------- 驾驶状态模拟器默认值 ---------- */
+  simulator: {
+    gear: 'P',            // P | R | N | D
+    speed: 0,             // km/h
+    // 车速超过该阈值时视为行车，娱乐功能受限（即使挡位为 P）
+    drivingSpeedThreshold: 5
   }
 };

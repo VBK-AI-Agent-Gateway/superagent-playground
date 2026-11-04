@@ -1,177 +1,189 @@
 /*!
- * 布局：常驻状态栏 / 页面容器 / 底部 Dock / 悬浮层安全区
- * 规则 2：状态栏（车速·挡位·告警）与 Dock 永远在最上层；页面内容只在中间区域滚动。
+ * css/layout.css — 竖屏基准布局与缩放
+ * 基准 1080×1920；根字号 = 视口宽度 / 1080 × 16px，
+ * 因此 1rem 在基准分辨率下等于 16px，其他尺寸等比缩放。
  */
-.shell {
+
+html {
+  font-size: calc(16px * var(--vw-scale, 1));
+}
+
+/* 由 JS 或媒体查询设定缩放；无 JS 时使用 vw 兜底 */
+html { --vw-scale: calc(100vw / 1080); }
+
+body {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+#app {
   position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: var(--safe-top) 0.5rem var(--safe-bottom);
-  gap: 0.28rem;
+  background:
+    radial-gradient(120% 60% at 50% 0%, var(--c-bg-2) 0%, var(--c-bg) 62%),
+    var(--c-bg);
+  overflow: hidden;
 }
 
-/* ---------- 顶部常驻状态栏 ---------- */
-.statusbar {
-  flex: 0 0 auto;
-  height: 1.1rem;
+/* ---------- 应用骨架：状态栏 / 舞台 / Dock ---------- */
+.app-root {
+  position: absolute;
+  inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.24rem;
-  padding: 0 0.32rem;
-  border-radius: var(--radius);
-  background: var(--surface);
-  border: 0.02rem solid var(--line);
-  backdrop-filter: blur(0.24rem);
-  box-shadow: var(--shadow);
-  z-index: 60;
-  transition: border-color 0.4s ease;
+  flex-direction: column;
+  opacity: 0;
+  transition: opacity 420ms ease;
 }
-.statusbar.is-restricted { border-color: rgba(245, 158, 11, 0.55); }
+.app-root.booted { opacity: 1; }
 
-.statusbar__left, .statusbar__right { display: flex; align-items: center; gap: 0.2rem; }
-.statusbar__mid {
-  display: flex; align-items: center; gap: 0.14rem;
-  color: var(--warn); font-size: 0.24rem; font-weight: 600;
-  letter-spacing: 0.01rem;
-}
-.statusbar__clock {
-  font-size: 0.36rem; font-weight: 700; letter-spacing: 0.02rem; font-variant-numeric: tabular-nums;
-}
-.statusbar__chip {
-  display: inline-flex; align-items: center; gap: 0.08rem;
-  height: 0.54rem; padding: 0 0.2rem;
-  border-radius: 999px; font-size: 0.22rem; color: var(--ink-2);
-  background: var(--surface-3); border: 0.02rem solid var(--line);
-}
-.statusbar__chip b { font-size: 0.3rem; color: var(--ink); font-variant-numeric: tabular-nums; }
-.statusbar__chip i { font-style: normal; font-size: 0.18rem; }
-.statusbar__chip.is-d { color: #fff; background: var(--accent); border-color: var(--accent-2); }
-.statusbar__chip.is-p { color: var(--ok); background: rgba(34, 197, 94, 0.14); border-color: rgba(34, 197, 94, 0.4); }
-.statusbar__chip--speed b { color: var(--accent-2); }
-.statusbar__icon {
-  position: relative;
-  display: grid; place-items: center;
-  width: 0.62rem; height: 0.62rem; border-radius: 50%;
-  color: var(--ink-2); background: var(--surface-3);
-  transition: transform 0.2s ease, color 0.2s ease;
-}
-.statusbar__icon:active { transform: scale(0.9); }
-.statusbar__icon .badge {
-  position: absolute; top: -0.04rem; right: -0.04rem;
-  min-width: 0.28rem; height: 0.28rem; padding: 0 0.06rem;
-  border-radius: 999px; background: var(--danger); color: #fff;
-  font-size: 0.18rem; font-style: normal; line-height: 0.28rem; text-align: center;
-}
-
-/* ---------- 页面容器 ---------- */
-.pages {
+.stage {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  border-radius: var(--radius-lg);
-  z-index: 10;
+  overflow: hidden;
+  /* Dock 常驻高度 + 安全边距 */
+  padding: 0 0.75rem 0.25rem;
 }
-.page-scroll {
+
+/* ---------- 启动闪屏 ---------- */
+.boot-splash {
   position: absolute;
   inset: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 0.06rem 0.06rem 0.2rem;
-  overscroll-behavior: contain;
-}
-.page-scroll--flush { padding: 0; }
-
-/* 网格：设计为 1080 宽（10.8rem），每行 6 列 */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.24rem;
-  padding: 0.08rem;
-  align-content: start;
-}
-.col-1 { grid-column: span 1; }
-.col-2 { grid-column: span 2; }
-.col-3 { grid-column: span 3; }
-.col-4 { grid-column: span 4; }
-.col-5 { grid-column: span 5; }
-.col-6 { grid-column: span 6; }
-
-.row { display: flex; align-items: center; gap: 0.2rem; }
-.row--between { justify-content: space-between; }
-.row--wrap { flex-wrap: wrap; }
-.stack { display: flex; flex-direction: column; gap: 0.2rem; }
-.grow { flex: 1 1 auto; min-width: 0; }
-
-/* ---------- 底部 Dock ---------- */
-.dock {
-  flex: 0 0 auto;
-  height: 1.5rem;
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 0.14rem;
-  padding: 0.16rem 0.2rem;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  border: 0.02rem solid var(--line);
-  backdrop-filter: blur(0.28rem);
-  box-shadow: var(--shadow);
-  z-index: 60;
-}
-.dock__btn {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 0.06rem;
-  border-radius: var(--radius);
-  color: var(--ink-2);
-  font-size: 0.2rem;
-  transition: background 0.28s ease, color 0.28s ease, transform 0.2s ease;
-}
-.dock__btn:active { transform: scale(0.94); }
-.dock__btn.is-active {
-  color: #fff;
-  background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%);
-  box-shadow: var(--glow);
-}
-.dock__btn.is-locked { color: var(--ink-3); opacity: 0.55; }
-.dock__lock {
-  position: absolute; top: 0.06rem; right: 0.14rem;
-  display: grid; place-items: center;
-  width: 0.3rem; height: 0.3rem; border-radius: 50%;
-  background: rgba(245, 158, 11, 0.9); color: #0b1220;
-}
-.dock__btn--gear { background: var(--surface-3); border: 0.02rem solid var(--line-strong); }
-.dock__btn--gear b { font-size: 0.38rem; line-height: 1; }
-.dock__btn--gear.is-d { color: #fff; background: linear-gradient(160deg, var(--accent) 0%, #10357f 100%); }
-.dock__btn--gear.is-p { color: var(--ok); border-color: rgba(34, 197, 94, 0.45); }
-
-/* ---------- 悬浮层安全区（不遮挡导航与关键驾驶信息） ---------- */
-.toast-layer {
-  position: absolute;
-  left: 50%;
-  top: 1.5rem;                 /* 紧贴状态栏下方，远离导航主视区与车速信息 */
-  transform: translateX(-50%);
-  width: min(7.2rem, 92%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.16rem;
-  pointer-events: none;        /* 非阻塞：不拦截任何点击 */
-  z-index: 80;
+  justify-content: center;
+  gap: 1.25rem;
+  background: radial-gradient(80% 50% at 50% 40%, #0d1c2b 0%, #050a10 70%);
+  color: #eaf3ff;
+  z-index: 9000;
 }
-.toast {
-  display: inline-flex; align-items: center; gap: 0.16rem;
-  max-width: 100%;
-  padding: 0.18rem 0.32rem;
+.boot-logo {
+  font-size: 3.5rem;
+  font-weight: 800;
+  letter-spacing: 0.35rem;
+  color: var(--c-accent-2, #6ab0ff);
+  text-shadow: 0 0 28px rgba(95, 176, 255, 0.6);
+}
+.boot-text { font-size: 0.95rem; color: #9fb6cc; }
+
+/* ---------- 通用页面容器 ---------- */
+.view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.25rem 0.25rem 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-line-strong) transparent;
+}
+.view::-webkit-scrollbar { width: 0.375rem; }
+.view::-webkit-scrollbar-thumb {
+  background: var(--c-line-strong);
+  border-radius: 1rem;
+}
+
+/* 页头：返回键 + 标题 + 状态标签 */
+.page-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.6rem;
+  background: linear-gradient(to bottom, var(--c-bg) 62%, transparent);
+}
+.ph-back {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 0.875rem;
+  background: var(--c-panel-2);
+  border: 1px solid var(--c-line);
+  color: var(--c-text);
+  transition: transform 140ms ease, background 160ms ease;
+}
+.ph-back:active { transform: scale(0.93); background: var(--c-panel-3); }
+.ph-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.02rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ph-status {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
   border-radius: 999px;
-  font-size: 0.26rem;
-  color: var(--ink);
-  background: rgba(10, 16, 32, 0.92);
-  border: 0.02rem solid var(--line-strong);
-  box-shadow: 0 0.14rem 0.4rem rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(0.2rem);
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--c-panel-2);
+  border: 1px solid var(--c-line);
+  color: var(--c-text-sub);
 }
-.cockpit[data-theme='light'] .toast { background: rgba(255, 255, 255, 0.96); }
-.toast--warn { color: #ffd79a; border-color: rgba(245, 158, 11, 0.6); }
-.cockpit[data-theme='light'] .toast--warn { color: #9a5b00; }
+.ph-status.ok   { color: var(--c-ok);   border-color: color-mix(in srgb, var(--c-ok) 40%, transparent); }
+.ph-status.warn { color: var(--c-warn); border-color: color-mix(in srgb, var(--c-warn) 40%, transparent); }
+.ph-status.bad  { color: var(--c-bad);  border-color: color-mix(in srgb, var(--c-bad) 40%, transparent); }
+
+/* ---------- 栅格工具 ---------- */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; }
+.row    { display: flex; align-items: center; gap: 0.6rem; }
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.col    { display: flex; flex-direction: column; gap: 0.6rem; }
+.spacer { flex: 1 1 auto; }
+
+/* 横向滚动条（标签页、卡片轨道） */
+.hscroll {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+}
+.hscroll::-webkit-scrollbar { display: none; }
+.hscroll > * { scroll-snap-align: start; flex: 0 0 auto; }
+
+/* ---------- 安全区：所有关键信息都留在此区域内 ---------- */
+/* 状态栏（车速 / 挡位 / 告警）永远置顶且不被浮层覆盖 */
+.status-bar { z-index: 400; }
+.toast-host { z-index: 600; }
+.gear-guard { z-index: 620; }
+.light-panel { z-index: 700; }
+.voice-orb { z-index: 500; }
+.dock-bar { z-index: 450; }
+
+/* 行车态：Dock 与浮层整体上移，避免贴近底部导航信息 */
+.driving .dock-bar { padding-bottom: 0.4rem; }
+
+/* ---------- 横屏 / 宽屏降级（非目标平台，仅保证可用） ---------- */
+@media (min-aspect-ratio: 1/1) {
+  html { --vw-scale: calc(100vh / 1920); }
+  body { overflow: auto; }
+  #app {
+    width: calc(100vh * (1080 / 1920));
+    margin: 0 auto;
+    box-shadow: var(--c-shadow);
+  }
+}

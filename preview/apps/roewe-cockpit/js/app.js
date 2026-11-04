@@ -1,162 +1,172 @@
 /*!
- * 应用外壳 app-shell
- * 负责：装配 store / 安全层 / 语音助手，提供 ctx，渲染状态栏 + 视图 + Dock + 浮层
+ * js/app.js — 应用装配
+ * 注册全部组件、计算当前视图、驱动挡位安全状态机与全局语音唤醒。
  */
 (function (global) {
   'use strict';
 
-  var VIEW_ORDER = ['home', 'nav', 'climate', 'media', 'vehicle', 'surround', 'parking', 'settings', 'voice'];
-  var VIEW_COMPONENTS = {
-    home: 'home-view',
-    nav: 'nav-view',
-    climate: 'climate-view',
-    media: 'media-view',
-    vehicle: 'vehicle-view',
-    surround: 'surround-view',
-    parking: 'parking-view',
-    settings: 'settings-view',
-    voice: 'voice-panel-view'
+  var S = global.CockpitState;
+  var cfg = global.COCKPIT_CONFIG;
+
+  /* ---------- Dock 项目 ---------- */
+  var DOCK = [
+    { key: 'home', label: '首页', icon: 'home' },
+    { key: 'nav', label: '导航', icon: 'nav' },
+    { key: 'climate', label: '空调', icon: 'climate' },
+    { key: 'media', label: '媒体', icon: 'media' },
+    { key: 'vehicle', label: '车辆', icon: 'vehicle' },
+    { key: 'voice', label: '语音', icon: 'voice' },
+    { key: 'surround', label: '全景', icon: 'surround' },
+    { key: 'parking', label: '泊车', icon: 'parking' },
+    { key: 'settings', label: '设置', icon: 'settings' }
+  ];
+
+  var VIEW_MAP = {
+    home: 'c-home-view',
+    nav: 'c-nav-view',
+    climate: 'c-climate-view',
+    media: 'c-media-view',
+    vehicle: 'c-vehicle-view',
+    voice: 'c-voice-panel-view',
+    surround: 'c-surround-view',
+    parking: 'c-parking-view',
+    settings: 'c-settings-view'
   };
 
-  global.AppShell = {
-    name: 'AppShell',
+  var app = {
     data: function () {
-      var state = global.createRoeweStore();
-      var toast = global.RoeweSafety.createToast(state);
-      var gears = global.RoeweSafety.createGearMachine(state, toast);
-      var router = global.RoeweSafety.createRouter(state, toast, gears);
-      var simulator = global.RoeweSafety.createDriveSimulator(state, gears, toast);
-      var ctx = {
-        state: state,
-        toast: toast,
-        gearMachine: gears,
-        router: router,
-        simulator: simulator,
-        voice: null,
-        setTheme: null,
-        toggleTheme: null
-      };
-      ctx.voice = global.createVoiceAssistant(ctx);
-      ctx.setTheme = function (key) {
-        state.theme = key === 'light' ? 'light' : 'dark';
-        if (state.system) state.system.theme = state.theme;
-      };
-      ctx.toggleTheme = function () {
-        ctx.setTheme(state.theme === 'dark' ? 'light' : 'dark');
-        toast.show(state.theme === 'dark' ? '已切换为深色模式' : '已切换为浅色模式', 'info');
-      };
-      return {
-        ctx: ctx,
-        view: 'home',
-        viewOrder: VIEW_ORDER,
-        components: VIEW_COMPONENTS,
-        clockTimer: null,
-        /* 路由是普通对象，用本地响应式字段镜像当前视图与方向 */
-        routerView: 'home',
-        routerDirection: 'forward'
-      };
-    },
-    provide: function () {
-      return { ctx: this.ctx };
+      return { S: S, dock: DOCK };
     },
     computed: {
-      state: function () { return this.ctx.state; },
-      theme: function () { return this.ctx.state.theme; },
-      currentComponent: function () { return VIEW_COMPONENTS[this.routerView] || 'home-view'; },
-      pageKey: function () { return this.routerView + '-' + this.routerDirection; },
-      transitionName: function () { return 'page'; },
-      pageDir: function () { return 'is-' + (this.routerDirection || 'forward'); }
-    },
-    created: function () {
-      this.tickClock();
-      this.clockTimer = setInterval(this.tickClock, 1000);
-      this.ctx.router.onChange = this.applyView.bind(this);
+      currentView: function () { return VIEW_MAP[S.view] || 'c-home-view'; },
+      transitionName: function () { return S.transitionName; },
+      driving: function () { return global.CockpitSafety.isDriving(); },
+      themeLabel: function () { return S.theme === 'dark' ? '深色' : '浅色'; }
     },
     mounted: function () {
-      this.applyView();
-      /* 调试 / 自动化钩子（只读引用，供验收脚本与人工调试使用） */
-      global.__app = this;
+      var self = this;
+
+      /* 主题与亮度落到 DOM */
+      this.applyTheme(S.theme);
+      this.applyBrightness(S.brightness);
+      this.$watch(function () { return S.theme; }, function (t) { self.applyTheme(t); });
+      this.$watch(function () { return S.brightness; }, function (b) { self.applyBrightness(b); });
+
+      /* 启动时按持久化挡位收敛一次视图 */
+      global.CockpitSafety.reconcileCurrentView();
+
+      /* 语音唤醒常驻监听（无权限或浏览器不支持时静默降级） */
+      global.CockpitVoice.init();
+
+      /* 全局快捷键：Esc 返回，方便调试 */
+      this._onKey = function (e) {
+        if (e.key === 'Escape') {
+          if (S.simulatorOpen) { global.CockpitSimulator.close(); return; }
+          if (S.lightPanel.open) { S.lightPanel.open = false; return; }
+          if (S.view !== 'home') global.CockpitRouter.back();
+        }
+      };
+      global.addEventListener('keydown', this._onKey);
+
+      /* 待机时钟：驱动首页时间与欢迎语 */
+      this._tick = global.setInterval(function () {
+        S.booted = true;
+      }, 30);
+      global.setTimeout(function () { S.booted = true; }, 40);
     },
     beforeUnmount: function () {
-      clearInterval(this.clockTimer);
-      this.ctx.router.onChange = null;
+      if (this._onKey) global.removeEventListener('keydown', this._onKey);
+      if (this._tick) global.clearInterval(this._tick);
     },
     methods: {
-      applyView: function () {
-        this.routerView = this.ctx.router.current || 'home';
-        this.routerDirection = this.ctx.router.direction || 'forward';
+      applyTheme: function (t) {
+        var el = global.document.documentElement;
+        el.classList.toggle('theme-dark', t === 'dark');
+        el.classList.toggle('theme-light', t !== 'dark');
+        el.setAttribute('data-theme', t);
       },
-      tickClock: function () {
-        var d = new Date();
-        var p = function (n) { return (n < 10 ? '0' : '') + n; };
-        this.state.nowText = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
-        var week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
-        this.state.nowDate = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + week;
-        this.state.fps = 60;
+      applyBrightness: function (b) {
+        var v = Math.max(20, Math.min(100, Number(b) || 80));
+        global.document.documentElement.style.setProperty('--c-brightness', (v / 100).toFixed(2));
       },
-      onVoiceFloater: function () {
-        this.ctx.router.push('voice');
-      }
+      go: function (view) {
+        if (view === 'camera') { this.openCamera(); return; }
+        global.CockpitRouter.go(view);
+      },
+      openCamera: function () {
+        if (global.CockpitSafety.isDriving()) {
+          global.CockpitSafety.warn('行车中，娱乐功能已限制', 'camera');
+          return;
+        }
+        S.camera.mode = 'front';
+        global.CockpitRouter.go('surround');
+      },
+      openSim: function () { global.CockpitSimulator.open(); }
     },
-    template: [
-      '<div class="shell" :data-theme="theme">',
-      '  <status-bar :state="state" :ctx="ctx" :view="routerView"></status-bar>',
-      '  <main class="pages">',
-      '    <transition :name="transitionName" mode="out-in">',
-      '      <component :is="currentComponent" :key="pageKey" :class="pageDir"></component>',
-      '    </transition>',
-      '  </main>',
-      '  <app-dock :state="state" :ctx="ctx" :view="routerView"></app-dock>',
-      '  <toast-layer :toast="state.toast"></toast-layer>',
-      '  <button class="voice-floater" :class="state.voice.awake ? \'is-awake\' : \'\'" @click="onVoiceFloater" aria-label="语音助手">',
-      '    <rw-icon name="mic" :size="34"></rw-icon>',
-      '    <span class="sr-only">语音助手</span>',
-      '  </button>',
+    template:
+      '<div class="app-root" :class="{ booted: S.booted, driving: driving, \'theme-\' + S.theme: true }">' +
+        '<status-bar></status-bar>' +
+        '<main class="stage">' +
+          '<transition :name="transitionName" mode="out-in">' +
+            '<component :is="currentView" :key="S.view"></component>' +
+          '</transition>' +
+        '</main>' +
+        '<dock-bar :items="dock" :active="S.view" @go="go" @sim="openSim"></dock-bar>' +
+        '<simulator-panel v-if="S.simulatorOpen"></simulator-panel>' +
+        '<light-panel v-if="S.lightPanel.open"></light-panel>' +
+        '<voice-orb></voice-orb>' +
+        '<gear-guard></gear-guard>' +
+        '<toast-host></toast-host>' +
       '</div>'
-    ].join('\n')
   };
 
-  /* ------------------------------------------------------------------
-   * 启动引导：注册全部组件并挂载到 #app
-   * ------------------------------------------------------------------ */
+  /* ---------- 注册组件 ---------- */
   var COMPONENTS = {
-    'app-shell': global.AppShell,
-    'rw-icon': global.RoeweIcon,
-    'card-panel': global.CardPanel,
-    'toast-layer': global.ToastLayer,
-    'status-bar': global.StatusBar,
-    'app-dock': global.AppDock,
-    'car-model-3d': global.CarModel3D,
-    'home-view': global.HomeView,
-    'nav-view': global.NavView,
-    'climate-view': global.ClimateView,
-    'media-view': global.MediaView,
-    'vehicle-view': global.VehicleView,
-    'voice-panel-view': global.VoicePanelView,
-    'surround-view': global.SurroundView,
-    'parking-view': global.ParkingView,
-    'settings-view': global.SettingsView
+    'c-icon': global.CIcon,
+    'c-card': global.CCard,
+    'status-bar': global.CStatusBar,
+    'dock-bar': global.CDock,
+    'car-model': global.CCarModel,
+    'simulator-panel': global.CSimulatorPanel,
+    'light-panel': global.CLightPanel,
+    'voice-orb': global.CVoiceOrb,
+    'gear-guard': global.CGearGuard,
+    'toast-host': global.CToastHost,
+    'c-home-view': global.CHomeView,
+    'c-nav-view': global.CNavView,
+    'c-climate-view': global.CClimateView,
+    'c-media-view': global.CMediaView,
+    'c-vehicle-view': global.CVehicleView,
+    'c-voice-panel-view': global.CVoicePanelView,
+    'c-surround-view': global.CSurroundView,
+    'c-parking-view': global.CParkingView,
+    'c-settings-view': global.CSettingsView
   };
 
-  function bootstrap() {
-    var missing = [];
-    for (var name in COMPONENTS) {
-      if (COMPONENTS[name]) continue;
-      missing.push(name);
-    }
-    if (missing.length) {
-      /* 组件缺失时明确报错，避免出现难以定位的白屏 */
-      console.error('[cockpit] 组件未注册：' + missing.join(', '));
-      return;
-    }
-    var app = global.Vue.createApp({ name: 'CockpitRoot', template: '<app-shell></app-shell>' });
-    for (var key in COMPONENTS) app.component(key, COMPONENTS[key]);
-    app.mount('#app');
+  var missing = [];
+  Object.keys(COMPONENTS).forEach(function (k) {
+    if (!COMPONENTS[k]) missing.push(k);
+  });
+  if (missing.length) {
+    global.console && global.console.warn('[cockpit] 缺少组件：' + missing.join(', '));
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bootstrap);
+  /* ---------- 启动 ---------- */
+  global.CockpitApp = app;
+  global.COCKPIT_DOCK = DOCK;
+
+  function boot() {
+    if (!global.Vue) {
+      global.document.getElementById('app').innerHTML =
+        '<p style="padding:24px;color:#fff">Vue 未加载，请确认 vendor/vue.global.prod.js 存在。</p>';
+      return;
+    }
+    global.Vue.createApp(app).mount('#app');
+  }
+
+  if (global.document.readyState === 'loading') {
+    global.document.addEventListener('DOMContentLoaded', boot);
   } else {
-    bootstrap();
+    boot();
   }
 })(window);

@@ -1,65 +1,96 @@
 /*!
- * 轻量图标组件：内联 SVG（无外部图标库依赖，离线可用）
+ * js/components/icon.js — 内联 SVG 图标组件（零依赖、可随主题变色）
+ * 用法：<c-icon name="nav" :size="28"></c-icon>
  */
 (function (global) {
   'use strict';
 
-  var PATHS = {
-    home: '<path d="M4 11.2 12 4l8 7.2V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/>',
-    nav: '<path d="M12 2 3 21l9-4 9 4z"/>',
-    climate: '<path d="M12 2v20M4.2 7l15.6 10M19.8 7 4.2 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.6"/>',
-    media: '<path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.8"/><circle cx="17.5" cy="16" r="2.8"/>',
-    car: '<path d="M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11v6.5a1 1 0 0 1-1 1h-1.2a1 1 0 0 1-1-1V16H8.2v1.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><circle cx="8" cy="13" r="1.2" fill="#0b1220"/><circle cx="16" cy="13" r="1.2" fill="#0b1220"/>',
-    settings: '<path d="M12 8.6A3.4 3.4 0 1 0 12 15.4 3.4 3.4 0 0 0 12 8.6zm9 3.4-2.1-.6a7.5 7.5 0 0 0-.6-1.5l1.1-1.9-1.9-1.9-1.9 1.1a7.5 7.5 0 0 0-1.5-.6L13.5 3h-3l-.6 2.1a7.5 7.5 0 0 0-1.5.6L6.5 4.6 4.6 6.5l1.1 1.9a7.5 7.5 0 0 0-.6 1.5L3 12v3l2.1.6a7.5 7.5 0 0 0 .6 1.5l-1.1 1.9 1.9 1.9 1.9-1.1a7.5 7.5 0 0 0 1.5.6L10.5 21h3l.6-2.1a7.5 7.5 0 0 0 1.5-.6l1.9 1.1 1.9-1.9-1.1-1.9a7.5 7.5 0 0 0 .6-1.5L21 15z"/>',
-    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 18v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-    camera: '<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h2l1-2h5l1 2h2A2.5 2.5 0 0 1 20 8.5v9A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.4" fill="#0b1220"/>',
-    park: '<path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.6 2.6 0 1 1 12 6.4a2.6 2.6 0 0 1 0 5.1z"/>',
-    back: '<path d="M14.5 5 8 12l6.5 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
-    sun: '<circle cx="12" cy="12" r="4.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-    cloud: '<path d="M7 18a4 4 0 0 1 .4-8A5.5 5.5 0 0 1 18 10.6A3.7 3.7 0 0 1 17.4 18z"/>',
-    rain: '<path d="M7 15a4 4 0 0 1 .4-8A5.5 5.5 0 0 1 18 7.6A3.7 3.7 0 0 1 17.4 15z"/><path d="M8.5 18l-1 2.4M12.5 18l-1 2.4M16.5 18l-1 2.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-    snow: '<path d="M7 15a4 4 0 0 1 .4-8A5.5 5.5 0 0 1 18 7.6A3.7 3.7 0 0 1 17.4 15z"/><circle cx="9" cy="19" r="1.1"/><circle cx="13" cy="20" r="1.1"/><circle cx="16.5" cy="18.6" r="1.1"/>',
-    fog: '<path d="M7 12a4 4 0 0 1 .4-8A5.5 5.5 0 0 1 18 4.6A3.7 3.7 0 0 1 17.4 12z"/><path d="M4 16h16M6 19h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-    play: '<path d="M8 5.5v13l11-6.5z"/>',
-    pause: '<rect x="7" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.2"/>',
-    prev: '<path d="M7 5h2.4v14H7zM19 5v14l-9-7z"/>',
-    next: '<path d="M14.6 5H17v14h-2.4zM5 19V5l9 7z"/>',
-    volume: '<path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z"/><path d="M15.4 9a4.4 4.4 0 0 1 0 6M17.8 6.4a8 8 0 0 1 0 11.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-    volumeMute: '<path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z"/><path d="M15.5 10l4.5 4M20 10l-4.5 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-    bluetooth: '<path d="M11 3l5 4.6-3.4 3.1v2.6L16 16.4 11 21V3z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M6.6 8.4 15 15.8M6.6 15.8 15 8.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
-    phone: '<path d="M6.4 3h3l1.5 4-2 1.4a12 12 0 0 0 5.7 5.7L16 12l4 1.5v3a2 2 0 0 1-2.2 2A15.6 15.6 0 0 1 4.4 5.2 2 2 0 0 1 6.4 3z"/>',
-    wifi: '<path d="M12 19.5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z"/><path d="M5.2 11.6a9.6 9.6 0 0 1 13.6 0M8 14.4a5.8 5.8 0 0 1 8 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-    light: '<path d="M4 14h5l5-4 5 2v3h-2a2.4 2.4 0 0 1-4.8 0H9a2.4 2.4 0 0 1-4.8 0z"/>',
-    lock: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="1.9"/>',
-    door: '<path d="M4 20V5.5A1.5 1.5 0 0 1 5.5 4h11A1.5 1.5 0 0 1 18 5.5V20z"/><circle cx="15" cy="12.5" r="1.1" fill="#0b1220"/>',
-    seat: '<path d="M7 4h6a2 2 0 0 1 2 2v7H7z"/><path d="M6 13h10l1.4 5.2a1.6 1.6 0 0 1-1.5 2H6.1a1.6 1.6 0 0 1-1.5-2z"/>',
-    fan: '<circle cx="12" cy="12" r="2.2"/><path d="M12 9.8c0-3.4.8-5.8 3.2-5.8 2.2 0 2.6 3 .4 4.2-1.4.8-2.6 1-3.6 1.6zM14.2 12c3.4 0 5.8.8 5.8 3.2 0 2.2-3 2.6-4.2.4-.8-1.4-1-2.6-1.6-3.6zM12 14.2c0 3.4-.8 5.8-3.2 5.8-2.2 0-2.6-3-.4-4.2 1.4-.8 2.6-1 3.6-1.6zM9.8 12C6.4 12 4 11.2 4 8.8 4 6.6 7 6.2 8.2 8.4c.8 1.4 1 2.6 1.6 3.6z"/>',
-    charge: '<path d="M13 2 5 13h5l-1 9 8-11h-5z"/>',
-    fuel: '<path d="M6 3h8v18H6zM14 7h2.5l1.5 2v8a1.8 1.8 0 0 1-3.6 0v-5H14z" fill="none" stroke="currentColor" stroke-width="1.8"/>',
-    route: '<circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.4 18h5.1a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.6" fill="none" stroke="currentColor" stroke-width="1.9"/>',
-    search: '<circle cx="11" cy="11" r="6.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M15.6 15.6 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
-    warn: '<path d="M12 3 2.5 20h19z"/><path d="M12 9v5" fill="none" stroke="#0b1220" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="#0b1220"/>',
-    check: '<path d="m4.5 12.5 5 5L20 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
-    close: '<path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
-    plus: '<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
-    minus: '<path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
-    ota: '<path d="M12 3v12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
-    info: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 10.5V17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.1"/>',
-    mirror: '<path d="M4 8h10a3 3 0 0 1 3 3v6l-3-2H4z"/><path d="M20 6v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-    sunroof: '<rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M6 9h12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'
+  var P = {
+    home:     'M3 11.2 12 4l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+    nav:      'M12 2 3.5 20.5 12 16.8l8.5 3.7z',
+    climate:  'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M12 6.6 9.9 4.5M12 6.6l2.1-2.1M12 17.4l-2.1 2.1M12 17.4l2.1 2.1',
+    media:    'M9 18V6.5l10-2v11M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3zm10-2.5a3 3 0 1 1-3-3 3 3 0 0 1 3 3z',
+    vehicle:  'M4 15.5 5.6 9.2A2 2 0 0 1 7.5 7.7h9A2 2 0 0 1 18.4 9.2L20 15.5M3.5 15.5h17v3.2h-2.4v-1.4H5.9v1.4H3.5zM6.8 18.7h1.6M15.6 18.7h1.6',
+    voice:    'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM6 11a6 6 0 0 0 12 0M12 17v4M9 21h6',
+    surround: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18M3 12h18M5.6 6.2A12 12 0 0 1 12 12a12 12 0 0 1 6.4-5.8M5.6 17.8A12 12 0 0 0 12 12a12 12 0 0 0 6.4 5.8',
+    parking:  'M9 20V4h4.2a4.3 4.3 0 0 1 0 8.6H9',
+    settings: 'M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM19.4 14.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 3 14.6H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.3 7.7l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 10 3.7V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1.07z',
+    /* 状态 / 功能 */
+    speed:    'M12 20a8 8 0 1 1 8-8M12 12l4.5-3.2',
+    battery:  'M3 8.5h14v7H3zM18.5 11v2M5.5 10.5h4v3h-4z',
+    fuel:     'M5 20V5.5h8V20M3.5 20h11M13 8.5h3.2l2.3 2.5V17a1.6 1.6 0 0 0 3.2 0v-4',
+    time:     'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7.5V12l3.2 2',
+    weather:  'M7 18h10a4 4 0 0 0 .4-8A6 6 0 0 0 6 9.3 4.4 4.4 0 0 0 7 18z',
+    sunny:    'M12 5V2.5M12 21.5V19M5 12H2.5M21.5 12H19M6.6 6.6 4.8 4.8M19.2 19.2l-1.8-1.8M17.4 6.6l1.8-1.8M4.8 19.2l1.8-1.8M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+    cloudy:   'M7.5 18.5h9.5a3.8 3.8 0 0 0 .3-7.5A5.8 5.8 0 0 0 6.4 9.6 4.2 4.2 0 0 0 7.5 18.5z',
+    rain:     'M7.5 16h9.5a3.8 3.8 0 0 0 .3-7.5A5.8 5.8 0 0 0 6.4 7.1 4.2 4.2 0 0 0 7.5 16zM9 19l-1 2.5M13 19l-1 2.5M17 19l-1 2.5',
+    wind:     'M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8',
+    /* 车辆控件 */
+    light:    'M4 12h3M14 6.6a6.5 6.5 0 0 1 0 10.8H8a5.4 5.4 0 0 1 0-10.8zM18 9.6l2.5-1.4M18 14.4l2.5 1.4M18 12h3',
+    lock:     'M7 10.5V8a5 5 0 0 1 10 0v2.5M5.5 10.5h13v9h-13zM12 14v2.5',
+    unlock:   'M7 10.5V8a5 5 0 0 1 9.6-2M5.5 10.5h13v9h-13zM12 14v2.5',
+    door:     'M5 20V4.5h11.5V20M5 20h14M9 12h.01',
+    mirror:   'M4 8.5h4.5l-1.5 7H4zM20 8.5h-4.5l1.5 7H20zM12 4v16',
+    seat:     'M8 20v-5.5h6.5V20M8 14.5V6a2.5 2.5 0 0 1 5 0v4h3.5a2 2 0 0 1 2 2v2.5',
+    sunroof:  'M4 6.5h16v11H4zM7 10.5h10v3H7z',
+    gear:     'M12 4v6M7 20v-4M17 20v-4M12 10 7 16M12 10l5 6M12 10a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z',
+    car:      'M4 15.5 5.6 9.2A2 2 0 0 1 7.5 7.7h9A2 2 0 0 1 18.4 9.2L20 15.5M3.5 15.5h17v3.2h-2.4v-1.4H5.9v1.4H3.5z',
+    /* 媒体 / 通信 */
+    play:     'M7 5.5 18.5 12 7 18.5z',
+    pause:    'M8 5.5h3.2v13H8zM12.8 5.5H16v13h-3.2z',
+    prev:     'M7 5.5v13M18 5.5 9.5 12 18 18.5z',
+    next:     'M17 5.5v13M6 5.5 14.5 12 6 18.5z',
+    volume:   'M4 9.5h3l4-3.5v12l-4-3.5H4zM15 9a4 4 0 0 1 0 6M17.6 6.6a7.5 7.5 0 0 1 0 10.8',
+    mute:     'M4 9.5h3l4-3.5v12l-4-3.5H4zM15.5 10l5 4M20.5 10l-5 4',
+    bt:       'M12 3v18M12 3l4.5 4.5L7.5 16M12 21l4.5-4.5L7.5 8',
+    phone:    'M6 3.5h3l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4 5.7 2 2 0 0 1 6 3.5z',
+    radio:    'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM7.5 7.5l2.2 2.2M16.5 7.5l-2.2 2.2M7.5 16.5l2.2-2.2M16.5 16.5l-2.2-2.2',
+    list:     'M4 6.5h16M4 12h16M4 17.5h10',
+    /* 安全 / 提示 */
+    shield:   'M12 3 5 6v5.5c0 4.3 3 8.1 7 9.5 4-1.4 7-5.2 7-9.5V6zM9 12l2 2 4-4',
+    warn:     'M12 4 2.8 20h18.4zM12 10v4.5M12 17.5h.01',
+    info:     'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5.5M12 7.5h.01',
+    mic:      'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM6 11a6 6 0 0 0 12 0M12 17v4M9 21h6',
+    close:    'M6 6l12 12M18 6 6 18',
+    check:    'M5 12.5 10 17.5 19 7',
+    plus:     'M12 5v14M5 12h14',
+    minus:    'M5 12h14',
+    chevron:  'M9 5.5 15.5 12 9 18.5',
+    back:     'M15 5.5 8.5 12 15 18.5',
+    search:   'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16.2 16.2 21 21',
+    charge:   'M13 3 5.5 13.5H11l-1 7.5L18.5 10H13z',
+    camera:   'M4 8h3.5L9 6h6l1.5 2H20v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
+    radar:    'M12 12 4.5 4.5M12 12a8 8 0 1 0 8 8',
+    route:    'M6.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM17.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM17.5 9v4a5 5 0 0 1-5 5h-4',
+    poi:      'M12 21s6.5-6 6.5-10.5A6.5 6.5 0 1 0 5.5 10.5C5.5 15 12 21 12 21zM12 10.5h.01',
+    home2:    'M4 11 12 4.5 20 11v9H4z',
+    work:     'M4 8h16v12H4zM9 8V5.5h6V8',
+    wifi:     'M2.5 9a14 14 0 0 1 19 0M6 12.5a9 9 0 0 1 12 0M9.2 16a4.3 4.3 0 0 1 5.6 0M12 19.5h.01',
+    ota:      'M12 20V6M12 6l-3.5 3.5M12 6l3.5 3.5M5 3.5h14',
+    info2:    'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5.5M12 7.5h.01',
+    moon:     'M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z',
+    sun:      'M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4',
+    brightness: 'M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2',
+    park:     'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 16.5v-9h2.6a2.8 2.8 0 0 1 0 5.6H10',
+    bluetooth2: 'M12 3v18M12 3l4.5 4.5L7.5 16M12 21l4.5-4.5L7.5 8',
+    arrowUp:  'M12 19.5V5M12 5l-5.5 5.5M12 5l5.5 5.5',
+    fan:      'M12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 8V4.5C12 3 13 2.5 14 3c3 1.4 4 4.5 2 6.2M12 16v3.5c0 1.5 1 2 2 1.5 3-1.4 4-4.5 2-6.2M8 12H4.5C3 12 2.5 13 3 14c1.4 3 4.5 4 6.2 2M16 12h3.5c1.5 0 2 1 1.5 2-1.4 3-4.5 4-6.2 2',
+    snow:     'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M12 6.6 9.9 4.5M12 6.6l2.1-2.1M12 17.4l-2.1 2.1M12 17.4l2.1 2.1',
+    wave:     'M4 12h2l2-5 2.5 10L13 5l2 7h5',
+    stop:     'M7 7h10v10H7z'
   };
 
-  global.RoeweIcon = {
-    name: 'RwIcon',
-    props: {
-      name: { type: String, required: true },
-      size: { type: [Number, String], default: 24 }
-    },
+  var icon = {
+    props: { name: { type: String, default: 'info' }, size: { type: [Number, String], default: 24 }, stroke: { type: [Number, String], default: 1.8 } },
     computed: {
-      svg: function () {
-        return PATHS[this.name] || PATHS.info;
-      }
+      path: function () { return P[this.name] || P.info; },
+      px: function () { return String(this.size).indexOf('r') !== -1 ? this.size : Number(this.size) + 'px'; }
     },
-    template: '<svg class="rw-icon" :width="size" :height="size" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" v-html="svg"></svg>'
+    template:
+      '<svg class="c-icon" :width="px" :height="px" viewBox="0 0 24 24" fill="none" ' +
+      'stroke="currentColor" :stroke-width="stroke" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path :d="path"></path></svg>'
   };
+
+  global.CIcon = icon;
 })(window);
