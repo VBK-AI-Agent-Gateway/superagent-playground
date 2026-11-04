@@ -1,0 +1,140 @@
+/*!
+ * 基础样式：1080×1920 竖屏设计稿 + rem/vw 等比适配
+ * 适配原理：html 的 font-size 由 vw 决定（1080 宽对应 100px 根字号），
+ * 所有模块尺寸均以 rem 表示，因此在 1080×1920 车机上为 1:1，在手机/桌面上等比缩放。
+ */
+:root {
+  --root-font: 9.259259vw; /* 100 / 1080 * 100 */
+  --safe-top: 0.6rem;
+  --safe-bottom: 0.6rem;
+  --radius: 0.28rem;
+  --radius-sm: 0.16rem;
+  --radius-lg: 0.4rem;
+
+  /* 深色座舱（默认） */
+  --bg: #05070d;
+  --bg-2: #0a1020;
+  --surface: rgba(18, 26, 44, 0.78);
+  --surface-2: rgba(26, 37, 60, 0.72);
+  --surface-3: rgba(36, 50, 78, 0.6);
+  --line: rgba(120, 160, 220, 0.16);
+  --line-strong: rgba(120, 170, 240, 0.34);
+  --ink: #eaf2ff;
+  --ink-2: #a7b8d4;
+  --ink-3: #6c7f9e;
+  --accent: #2b6cff;
+  --accent-2: #56a0ff;
+  --accent-soft: rgba(43, 108, 255, 0.18);
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --glow: 0 0 1.2rem rgba(43, 108, 255, 0.35);
+  --shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.35);
+}
+
+@media (max-height: 700px) and (orientation: landscape) {
+  :root { --root-font: 5.208333vw; } /* 横屏时按高度适配 100/1920*100 */
+}
+
+/* ---------- 浅色座舱主题 ---------- */
+.cockpit[data-theme='light'] {
+  --bg: #eef2f8;
+  --bg-2: #e2e8f2;
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-2: rgba(255, 255, 255, 0.78);
+  --surface-3: rgba(238, 243, 250, 0.9);
+  --line: rgba(30, 60, 110, 0.14);
+  --line-strong: rgba(30, 70, 140, 0.28);
+  --ink: #10192b;
+  --ink-2: #4a5a75;
+  --ink-3: #7b8ba5;
+  --accent: #1c5fd8;
+  --accent-2: #2b6cff;
+  --accent-soft: rgba(28, 95, 216, 0.12);
+  --glow: 0 0 1rem rgba(28, 95, 216, 0.2);
+  --shadow: 0 0.08rem 0.24rem rgba(20, 40, 80, 0.12);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-size: var(--root-font);
+  background: #000;
+  color: var(--ink);
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', system-ui, sans-serif;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 90% at 50% 0%, #0b1222 0%, #000 100%);
+}
+
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 0.03rem solid var(--accent-2); outline-offset: 0.04rem; }
+h1, h2, h3, h4, p { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+svg { display: block; }
+input[type='range'] { -webkit-appearance: none; appearance: none; background: transparent; }
+input[type='range']::-webkit-slider-runnable-track {
+  height: 0.28rem; border-radius: 999px; background: var(--surface-3);
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 0.46rem; height: 0.46rem; margin-top: -0.09rem;
+  border-radius: 50%; background: var(--accent-2); box-shadow: var(--glow); border: 0.04rem solid #fff;
+}
+input[type='range']::-moz-range-track { height: 0.28rem; border-radius: 999px; background: var(--surface-3); }
+input[type='range']::-moz-range-thumb {
+  width: 0.44rem; height: 0.44rem; border-radius: 50%; background: var(--accent-2); border: 0.04rem solid #fff;
+}
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ---------- 座舱舞台 ---------- */
+.cockpit {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  color: var(--ink);
+  background:
+    radial-gradient(90% 60% at 20% 0%, var(--accent-soft) 0%, transparent 62%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+  transition: background 0.6s ease, color 0.4s ease;
+}
+
+/* 1080×1920 固定比例（9:16）居中等比缩放 */
+.cockpit__stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 56.25vh;   /* 16:9 竖屏：高度优先 */
+  height: 100vh;
+  width: 56.25dvh;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 177.7778vw; /* 1920/1080 */
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  background: transparent;
+}
+
+@media (min-aspect-ratio: 9/16) {
+  .cockpit__stage {
+    width: 100vw;
+    height: 177.7778vw;
+    max-height: 100dvh;
+  }
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}

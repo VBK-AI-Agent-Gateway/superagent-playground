@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05070d">
+  <title>荣威RX5 · 智能座舱</title>
+
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/modules.css">
+  <link rel="stylesheet" href="css/animations.css">
+
+  <!-- 运行时配置（高德 key 等）：必须在其他脚本之前 -->
+  <script src="config.js"></script>
+
+  <!-- 零构建：Vue 3 已内置于 vendor/，完全离线可用；CDN 仅作为兜底 -->
+  <script src="vendor/vue.global.prod.js"></script>
+  <script>
+    /* 本地副本缺失（例如被裁剪的部署）时回退到公共 CDN */
+    (function () {
+      var cdns = [
+        'https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js',
+        'https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js'
+      ];
+      for (var i = 0; i < cdns.length && !window.Vue; i++) {
+        try {
+          document.write('<script src="' + cdns[i] + '"><\/script>');
+        } catch (e) { /* 忽略：自有 CSS 与降级路径仍可用 */ }
+      }
+    })();
+  </script>
+  <!-- Tailwind Play CDN 仅提供原子类；异步加载，不阻塞首屏；失败时自有 CSS 仍完整可用 -->
+  <script>
+    (function () {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.tailwindcss.com/3.4.3';
+      s.async = true;
+      s.onerror = function () { /* 离线：自有 CSS 已覆盖全部样式 */ };
+      document.head.appendChild(s);
+    })();
+  </script>
+</head>
+<body>
+  <!-- 1080×1920 设计稿舞台：由 css/base.css 的 rem 规则等比缩放适配任意屏幕 -->
+  <div id="app" class="cockpit">
+    <div class="cockpit__stage" data-design="1080x1920">
+      <app-shell></app-shell>
+    </div>
+  </div>
+
+  <!-- 模块脚本（按依赖顺序加载，无构建步骤） -->
+  <script src="js/data/mock.js"></script>
+  <script src="js/core/voice-registry.js"></script>
+  <script src="js/store/state.js"></script>
+  <script src="js/store/safety.js"></script>
+  <script src="js/core/map-loader.js"></script>
+  <script src="js/core/voice.js"></script>
+
+  <script src="js/components/icon.js"></script>
+  <script src="js/components/card.js"></script>
+  <script src="js/components/toast.js"></script>
+  <script src="js/components/statusbar.js"></script>
+  <script src="js/components/dock.js"></script>
+  <script src="js/components/car-model.js"></script>
+
+  <script src="js/views/home.js"></script>
+  <script src="js/views/nav.js"></script>
+  <script src="js/views/climate.js"></script>
+  <script src="js/views/media.js"></script>
+  <script src="js/views/vehicle.js"></script>
+  <script src="js/views/voice-panel.js"></script>
+  <script src="js/views/surround.js"></script>
+  <script src="js/views/parking.js"></script>
+  <script src="js/views/settings.js"></script>
+
+  <script src="js/app.js"></script>
+
+  <!-- 极端情况：Vue 本地副本与 CDN 均不可用（完全离线 + 文件缺失），给出可读提示而不是白屏 -->
+  <script>
+    if (!window.__app) {
+      var stage = document.querySelector('.cockpit__stage');
+      if (stage) {
+        stage.innerHTML = '<div style="color:#e5edf7;font:500 28px/1.7 system-ui,sans-serif;' +
+          'padding:80px;text-align:center">座舱界面未能启动<br>' +
+          '<span style="color:#8fa3bd;font-size:20px">未找到 vendor/vue.global.prod.js，且无法访问 CDN。<br>' +
+          '请确认该文件存在，或在有网络的环境下打开。</span></div>';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+/*!
+ * 车规级过渡动画
+ * 规则 3：卡片滑入 / 缩放，禁止硬切
+ * 规则 1：D 挡限制时用轻量提示而非遮挡式弹窗
+ */
+
+/* ---------- 页面切换（路由） ---------- */
+.page-enter-active,
+.page-leave-active {
+  transition: transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.34s ease;
+  will-change: transform, opacity;
+}
+.page-enter-from { opacity: 0; transform: translateX(3%); }
+.page-leave-to { opacity: 0; transform: translateX(-2.4%); }
+.page-enter-active.is-back,
+.page-leave-active.is-back { transition-duration: 0.36s; }
+.page-enter-from.is-back { transform: translateX(-3%); }
+.page-leave-to.is-back { transform: translateX(2.4%); }
+.page-enter-from.is-fade,
+.page-leave-to.is-fade { transform: scale(0.985); }
+
+/* ---------- 卡片入场：滑入 + 缩放 ---------- */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(0.34rem) scale(0.975); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card { animation: card-in 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.grid > *:nth-child(1) { animation-delay: 0.02s; }
+.grid > *:nth-child(2) { animation-delay: 0.06s; }
+.grid > *:nth-child(3) { animation-delay: 0.1s; }
+.grid > *:nth-child(4) { animation-delay: 0.14s; }
+.grid > *:nth-child(5) { animation-delay: 0.18s; }
+.grid > *:nth-child(6) { animation-delay: 0.22s; }
+.grid > *:nth-child(7) { animation-delay: 0.26s; }
+.grid > *:nth-child(8) { animation-delay: 0.3s; }
+
+/* ---------- 非阻塞提示 ---------- */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-0.24rem) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-0.18rem) scale(0.96); }
+}
+.toast-pop-enter-active { animation: toast-in 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.toast-pop-leave-active { animation: toast-out 0.26s ease both; }
+
+/* ---------- 车辆 3D / SVG 模型 ---------- */
+.car-model { position: relative; width: 100%; height: 100%; min-height: 3.2rem; }
+.car-model__stage { width: 100%; height: 100%; }
+.car-model__stage canvas { display: block; width: 100% !important; height: 100% !important; }
+.car-model__css { position: absolute; inset: 0; display: grid; place-items: center; perspective: 12rem; }
+@keyframes car-spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+.car-css3d {
+  position: relative;
+  width: 3.6rem; height: 4.4rem;
+  transform-style: preserve-3d;
+  animation: car-spin linear infinite;
+}
+.car-css3d__body { width: 100%; height: 100%; filter: drop-shadow(0 0.3rem 0.5rem rgba(0, 0, 0, 0.55)); }
+.car-css3d__ring {
+  position: absolute; left: 50%; bottom: -0.1rem; width: 4.4rem; height: 0.9rem;
+  transform: translateX(-50%) rotateX(72deg);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(43, 108, 255, 0.45), transparent 72%);
+}
+.car-model__ground {
+  position: absolute; left: 50%; bottom: 0.1rem; width: 78%; height: 0.22rem;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(43, 108, 255, 0.5), transparent 75%);
+  filter: blur(0.06rem);
+}
+.car-model__badge {
+  position: absolute; right: 0.1rem; bottom: 0.06rem;
+  display: inline-flex; align-items: center; gap: 0.08rem;
+  padding: 0.06rem 0.16rem;
+  border-radius: 999px;
+  font-size: 0.18rem; color: var(--ink-3);
+  background: var(--surface-3);
+  border: 0.02rem solid var(--line);
+}
+.car-model__badge .dot {
+  width: 0.12rem; height: 0.12rem; border-radius: 50%;
+  background: var(--ok); box-shadow: 0 0 0.2rem rgba(34, 197, 94, 0.9);
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ---------- 语音助手 ---------- */
+.voice-orb {
+  position: relative;
+  display: grid; place-items: center;
+  width: 1.4rem; height: 1.4rem;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(160deg, var(--accent) 0%, #10357f 100%);
+  box-shadow: var(--glow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.voice-orb:active { transform: scale(0.92); }
+.voice-orb.is-awake { animation: orb-breathe 1.6s ease-in-out infinite; }
+@keyframes orb-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(43, 108, 255, 0.55); }
+  50% { box-shadow: 0 0 0 0.4rem rgba(43, 108, 255, 0); }
+}
+.voice-orb__ring {
+  position: absolute; inset: -0.16rem;
+  border-radius: 50%;
+  border: 0.03rem solid rgba(86, 160, 255, 0.6);
+  opacity: 0;
+}
+.voice-orb.is-listening .voice-orb__ring { animation: ring-out 1.8s ease-out infinite; }
+@keyframes ring-out {
+  0% { opacity: 0.85; transform: scale(0.9); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+
+.voice-wave { display: flex; align-items: flex-end; gap: 0.06rem; height: 0.44rem; }
+.voice-wave i {
+  width: 0.07rem; border-radius: 999px; background: var(--accent-2);
+  animation: wave 0.9s ease-in-out infinite;
+}
+.voice-wave i:nth-child(1) { height: 30%; animation-delay: 0s; }
+.voice-wave i:nth-child(2) { height: 70%; animation-delay: 0.1s; }
+.voice-wave i:nth-child(3) { height: 100%; animation-delay: 0.2s; }
+.voice-wave i:nth-child(4) { height: 55%; animation-delay: 0.3s; }
+.voice-wave i:nth-child(5) { height: 80%; animation-delay: 0.4s; }
+.voice-wave i:nth-child(6) { height: 40%; animation-delay: 0.5s; }
+@keyframes wave { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
+
+.voice-bubble {
+  max-width: 78%;
+  padding: 0.16rem 0.24rem;
+  border-radius: 0.2rem;
+  font-size: 0.22rem;
+  line-height: 1.4;
+  animation: card-in 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.voice-bubble--user {
+  align-self: flex-end;
+  color: #fff;
+  background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%);
+  border-bottom-right-radius: 0.06rem;
+}
+.voice-bubble--ai {
+  align-self: flex-start;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+  border-bottom-left-radius: 0.06rem;
+}
+
+/* ---------- 泊车雷达 ---------- */
+@keyframes alarm-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+.radar-zone.is-alarm { animation: alarm-pulse 0.7s ease-in-out infinite; }
+.radar-zone.is-warn { animation: alarm-pulse 1.4s ease-in-out infinite; }
+.obstacle { animation: obstacle-in 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@keyframes obstacle-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+
+/* ---------- 主题切换 ---------- */
+.theme-fade-enter-active, .theme-fade-leave-active { transition: opacity 0.4s ease; }
+.theme-fade-enter-from, .theme-fade-leave-to { opacity: 0; }
+
+/* ---------- 无障碍：尊重系统降低动效偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.08s !important;
+  }
+}

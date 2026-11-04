@@ -1,0 +1,211 @@
+/*!
+ * 通用组件样式：卡片 / 按钮 / 开关 / 旋钮 / 滑杆 / 仪表 / 列表项
+ */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0.28rem 0.3rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 0.02rem solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(0.24rem);
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1), border-color 0.32s ease, background 0.4s ease;
+}
+.card--tappable { cursor: pointer; }
+.card--tappable:active { transform: scale(0.985); border-color: var(--line-strong); }
+.card--accent { border-color: var(--line-strong); background: linear-gradient(150deg, var(--accent-soft) 0%, var(--surface) 58%); }
+.card--warn { border-color: rgba(245, 158, 11, 0.5); }
+.card--flat { background: var(--surface-2); box-shadow: none; }
+.card__head {
+  display: flex; align-items: center; gap: 0.14rem;
+  margin-bottom: 0.22rem;
+  color: var(--ink-2);
+}
+.card__head h3 { font-size: 0.26rem; font-weight: 600; color: var(--ink); letter-spacing: 0.01rem; }
+.card__head .grow { flex: 1 1 auto; }
+.card__body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.18rem; }
+.card__hint { font-size: 0.2rem; color: var(--ink-3); }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.1rem;
+  height: 0.72rem; padding: 0 0.28rem;
+  border-radius: 0.18rem;
+  font-size: 0.24rem;
+  color: var(--ink);
+  background: var(--surface-3);
+  border: 0.02rem solid var(--line);
+  transition: transform 0.18s ease, background 0.28s ease, color 0.28s ease, border-color 0.28s ease;
+}
+.btn:active { transform: scale(0.95); }
+.btn--primary { color: #fff; background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%); border-color: transparent; }
+.btn--ghost { background: transparent; }
+.btn--danger { color: #fff; background: linear-gradient(160deg, #ef4444 0%, #991b1b 100%); border-color: transparent; }
+.btn--on { color: #fff; background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%); border-color: transparent; box-shadow: var(--glow); }
+.btn--sm { height: 0.58rem; font-size: 0.21rem; padding: 0 0.2rem; }
+.btn--block { width: 100%; }
+.btn[disabled], .btn.is-disabled { color: var(--ink-3); background: var(--surface-2); border-color: var(--line); opacity: 0.6; box-shadow: none; }
+
+/* 方形图标按钮（空调/车辆控制网格） */
+.ctrl {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem;
+  min-height: 1.12rem;
+  padding: 0.16rem 0.12rem;
+  border-radius: var(--radius);
+  font-size: 0.21rem;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+  transition: transform 0.18s ease, background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+.ctrl__label { text-align: center; line-height: 1.15; }
+.ctrl:active { transform: scale(0.94); }
+.ctrl.is-on {
+  color: #fff;
+  background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%);
+  border-color: transparent;
+  box-shadow: var(--glow);
+}
+.ctrl.is-warn.is-on { background: linear-gradient(160deg, #f59e0b 0%, #b45309 100%); }
+.ctrl.is-locked { opacity: 0.45; }
+
+/* ---------- 开关 ---------- */
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 0.92rem; height: 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 0.02rem solid var(--line);
+  transition: background 0.32s ease, border-color 0.32s ease;
+}
+.switch::after {
+  content: '';
+  position: absolute; top: 0.04rem; left: 0.04rem;
+  width: 0.36rem; height: 0.36rem;
+  border-radius: 50%;
+  background: var(--ink-2);
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1), background 0.32s ease;
+}
+.switch.is-on { background: linear-gradient(120deg, var(--accent) 0%, #1746a8 100%); border-color: transparent; }
+.switch.is-on::after { transform: translateX(0.42rem); background: #fff; }
+
+/* ---------- 列表项 ---------- */
+.list { display: flex; flex-direction: column; gap: 0.12rem; }
+.list__item {
+  display: flex; align-items: center; gap: 0.2rem;
+  min-height: 0.86rem;
+  padding: 0.14rem 0.22rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.18s ease;
+}
+.list__item--btn { text-align: left; }
+.list__item--btn:active { transform: scale(0.985); }
+.list__item.is-active { border-color: var(--line-strong); background: var(--accent-soft); }
+.list__main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.04rem; }
+.list__title { font-size: 0.24rem; color: var(--ink); }
+.list__sub { font-size: 0.19rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list__value { font-size: 0.24rem; color: var(--accent-2); font-variant-numeric: tabular-nums; }
+
+/* ---------- 滑杆 ---------- */
+.slider { position: relative; display: flex; align-items: center; gap: 0.2rem; }
+.slider input[type='range'] { flex: 1 1 auto; height: 0.46rem; }
+.slider__label { display: flex; align-items: center; gap: 0.12rem; font-size: 0.22rem; color: var(--ink-2); min-width: 1.5rem; }
+.slider__value { min-width: 1.1rem; text-align: right; font-size: 0.26rem; color: var(--accent-2); font-variant-numeric: tabular-nums; }
+
+/* ---------- 温度旋钮 ---------- */
+.knob {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 0.12rem;
+}
+.knob__ring {
+  position: relative;
+  width: 2.1rem; height: 2.1rem;
+  border-radius: 50%;
+  background: conic-gradient(from 200deg, var(--accent) var(--pct, 40%), var(--surface-3) 0);
+  display: grid; place-items: center;
+  transition: background 0.5s ease;
+}
+.knob__ring::after {
+  content: '';
+  position: absolute; inset: 0.14rem;
+  border-radius: 50%;
+  background: var(--bg-2);
+}
+.knob__inner {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center;
+}
+.knob__value { font-size: 0.6rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.knob__unit { font-size: 0.2rem; color: var(--ink-3); }
+.knob__btns { display: flex; gap: 0.16rem; }
+.knob__btn {
+  display: grid; place-items: center;
+  width: 0.56rem; height: 0.56rem;
+  border-radius: 50%;
+  color: var(--ink);
+  background: var(--surface-3);
+  border: 0.02rem solid var(--line);
+}
+.knob__btn:active { transform: scale(0.9); }
+
+/* ---------- 仪表 / 进度 ---------- */
+.gauge { display: flex; flex-direction: column; align-items: center; gap: 0.08rem; }
+.gauge__value { font-size: 0.44rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.gauge__unit { font-size: 0.19rem; color: var(--ink-3); }
+.gauge__label { font-size: 0.2rem; color: var(--ink-2); }
+
+.bar {
+  position: relative;
+  height: 0.16rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.bar__fill {
+  position: absolute; inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+  transition: width 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.bar__fill.is-warn { background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%); }
+.bar--thin { height: 0.1rem; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 0.08rem;
+  height: 0.44rem; padding: 0 0.18rem;
+  border-radius: 999px;
+  font-size: 0.2rem;
+  color: var(--ink-2);
+  background: var(--surface-3);
+  border: 0.02rem solid var(--line);
+}
+.chip--ok { color: var(--ok); border-color: rgba(34, 197, 94, 0.4); }
+.chip--warn { color: var(--warn); border-color: rgba(245, 158, 11, 0.45); }
+.chip--danger { color: var(--danger); border-color: rgba(239, 68, 68, 0.45); }
+.chip--accent { color: var(--accent-2); border-color: var(--line-strong); }
+
+.tag {
+  display: inline-flex; align-items: center;
+  padding: 0.04rem 0.14rem;
+  border-radius: 0.1rem;
+  font-size: 0.18rem;
+  color: var(--ink-2);
+  background: var(--surface-3);
+}
+.tag--ok { color: var(--ok); background: rgba(34, 197, 94, 0.14); }
+.tag--warn { color: var(--warn); background: rgba(245, 158, 11, 0.16); }
+.tag--danger { color: var(--danger); background: rgba(239, 68, 68, 0.16); }
+
+.muted { color: var(--ink-3); }
+.accent { color: var(--accent-2); }
+.center { text-align: center; }
+.strip { display: flex; align-items: center; justify-content: space-between; gap: 0.16rem; }
+.kv { display: flex; align-items: baseline; justify-content: space-between; gap: 0.16rem; font-size: 0.22rem; }
+.kv dt { color: var(--ink-3); }
+.kv dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
