@@ -1,0 +1,372 @@
+/*!
+ * 模块样式：主页 / 导航 / 空调 / 媒体 / 车辆 / 语音 / 全景 / 泊车 / 设置
+ */
+
+/* ================= 主页 ================= */
+.hero {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(155deg, var(--accent-soft) 0%, var(--surface) 55%);
+}
+.hero__stage { position: relative; height: 4.0rem; }
+.hero__top {
+  position: absolute; top: 0.24rem; left: 0.3rem; right: 0.3rem;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 0.2rem;
+  z-index: 2;
+}
+.hero__model { font-size: 0.36rem; font-weight: 700; letter-spacing: 0.02rem; }
+.hero__sub { margin-top: 0.06rem; font-size: 0.21rem; color: var(--ink-3); }
+.hero__plate {
+  display: inline-flex; align-items: center; gap: 0.08rem;
+  padding: 0.06rem 0.16rem;
+  border-radius: 0.12rem;
+  font-size: 0.21rem; color: var(--accent-2);
+  background: var(--surface-3);
+  border: 0.02rem solid var(--line-strong);
+}
+.hero__nav-cue {
+  position: absolute; left: 0.3rem; right: 0.3rem; bottom: 0.22rem;
+  display: flex; align-items: center; gap: 0.18rem;
+  padding: 0.18rem 0.22rem;
+  border-radius: var(--radius);
+  background: rgba(10, 16, 32, 0.78);
+  border: 0.02rem solid var(--line-strong);
+  backdrop-filter: blur(0.2rem);
+  z-index: 2;
+  cursor: pointer;
+}
+.cockpit[data-theme='light'] .hero__nav-cue { background: rgba(255, 255, 255, 0.9); }
+.hero__nav-cue .arrow {
+  display: grid; place-items: center;
+  width: 0.66rem; height: 0.66rem; border-radius: 0.16rem;
+  color: #fff; background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%);
+  flex: 0 0 auto;
+}
+.hero__nav-cue .t1 { font-size: 0.26rem; font-weight: 600; }
+.hero__nav-cue .t2 { font-size: 0.2rem; color: var(--ink-3); margin-top: 0.04rem; }
+
+.gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.2rem; }
+.gauge-ring {
+  position: relative;
+  display: grid; place-items: center;
+  width: 1.7rem; height: 1.7rem;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: conic-gradient(from 140deg, var(--ring-color, var(--accent)) var(--pct, 60%), var(--surface-3) 0);
+}
+.gauge-ring::after {
+  content: ''; position: absolute; inset: 0.12rem; border-radius: 50%; background: var(--bg-2);
+}
+.gauge-ring__inner { position: relative; z-index: 1; display: grid; place-items: center; }
+.gauge-ring__val { font-size: 0.4rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.gauge-ring__unit { font-size: 0.17rem; color: var(--ink-3); }
+
+.quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.18rem; }
+.quick__btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem;
+  min-height: 1.3rem;
+  border-radius: var(--radius);
+  font-size: 0.21rem;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+  transition: transform 0.18s ease, background 0.3s ease, color 0.3s ease;
+}
+.quick__btn:active { transform: scale(0.94); }
+.quick__btn.is-on { color: #fff; background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%); border-color: transparent; }
+.quick__btn.is-locked { opacity: 0.45; }
+
+.weather-now { display: flex; align-items: center; gap: 0.28rem; }
+.weather-now__temp { font-size: 0.76rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.weather-now__desc { font-size: 0.24rem; color: var(--ink-2); }
+.weather-now__meta { display: flex; gap: 0.12rem; margin-top: 0.08rem; flex-wrap: wrap; }
+.weather-icon { color: var(--accent-2); }
+
+/* ================= 导航 ================= */
+.nav-map {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(10, 22, 46, 0.95) 0%, rgba(6, 12, 24, 0.98) 100%);
+  border: 0.02rem solid var(--line);
+}
+.cockpit[data-theme='light'] .nav-map { background: linear-gradient(160deg, #e9eef7 0%, #dfe7f3 100%); }
+.nav-map__amap { position: absolute; inset: 0; }
+.nav-map__fallback { position: absolute; inset: 0; }
+.nav-map__fallback svg { width: 100%; height: 100%; }
+.nav-overlay {
+  position: absolute; left: 0.24rem; right: 0.24rem; bottom: 0.24rem;
+  display: flex; flex-direction: column; gap: 0.16rem;
+  pointer-events: none;
+}
+.nav-overlay > * { pointer-events: auto; }
+.nav-banner {
+  display: flex; align-items: center; gap: 0.2rem;
+  padding: 0.2rem 0.26rem;
+  border-radius: var(--radius);
+  color: #fff;
+  background: linear-gradient(160deg, rgba(43, 108, 255, 0.96) 0%, rgba(16, 53, 127, 0.96) 100%);
+  box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.45);
+}
+.nav-banner__arrow { display: grid; place-items: center; width: 0.8rem; height: 0.8rem; flex: 0 0 auto; }
+.nav-banner__main { font-size: 0.34rem; font-weight: 700; }
+.nav-banner__sub { font-size: 0.21rem; opacity: 0.9; margin-top: 0.04rem; }
+.nav-banner__eta { margin-left: auto; text-align: right; flex: 0 0 auto; }
+.nav-banner__eta b { font-size: 0.4rem; font-variant-numeric: tabular-nums; }
+.nav-banner__eta span { display: block; font-size: 0.18rem; opacity: 0.85; }
+
+.nav-chips { display: flex; gap: 0.14rem; flex-wrap: wrap; }
+.nav-lanes { display: flex; align-items: center; gap: 0.14rem; padding: 0.16rem 0.22rem; border-radius: var(--radius); background: rgba(8, 14, 28, 0.86); border: 0.02rem solid var(--line); }
+.cockpit[data-theme='light'] .nav-lanes { background: rgba(255, 255, 255, 0.92); }
+.nav-lane {
+  display: grid; place-items: center;
+  width: 0.5rem; height: 0.5rem;
+  border-radius: 0.1rem;
+  color: var(--ink-3);
+  background: var(--surface-3);
+}
+.nav-lane.is-active { color: #fff; background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%); }
+.engine-pill {
+  display: inline-flex; align-items: center; gap: 0.08rem;
+  padding: 0.04rem 0.14rem; border-radius: 999px;
+  font-size: 0.18rem;
+  color: var(--ink-2); background: var(--surface-3); border: 0.02rem solid var(--line);
+}
+.engine-pill.is-live { color: var(--ok); border-color: rgba(34, 197, 94, 0.45); }
+
+.route-item { display: flex; flex-direction: column; gap: 0.1rem; }
+.route-item__head { display: flex; align-items: center; justify-content: space-between; gap: 0.16rem; }
+.route-item__name { font-size: 0.25rem; font-weight: 600; }
+.route-item__meta { display: flex; gap: 0.12rem; font-size: 0.19rem; color: var(--ink-3); flex-wrap: wrap; }
+.route-item__road { font-size: 0.19rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.poi-item { display: flex; align-items: center; gap: 0.2rem; }
+
+/* ================= 空调 ================= */
+.climate-stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.28rem;
+  align-items: center;
+}
+.climate-fan { display: flex; flex-direction: column; align-items: center; gap: 0.16rem; }
+.fan-blades { position: relative; width: 2.0rem; height: 2.0rem; }
+.fan-blades svg { width: 100%; height: 100%; }
+.fan-blades.is-spinning svg { animation: fan-spin linear infinite; animation-duration: var(--fan-dur, 2.6s); }
+@keyframes fan-spin { to { transform: rotate(360deg); } }
+.seat-map { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.18rem; }
+.seat-map .ctrl { min-height: 1.3rem; }
+
+/* ================= 多媒体 ================= */
+.media-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 3.6rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: grid; place-items: center;
+  color: rgba(255, 255, 255, 0.92);
+  border: 0.02rem solid var(--line);
+}
+.media-cover__disc {
+  position: absolute;
+  width: 62%; aspect-ratio: 1/1;
+  border-radius: 50%;
+  border: 0.02rem solid rgba(255, 255, 255, 0.35);
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.35), transparent 70%);
+  animation: fan-spin 8s linear infinite;
+}
+.media-cover__title { position: relative; z-index: 1; font-size: 0.42rem; font-weight: 700; letter-spacing: 0.04rem; text-shadow: 0 0.06rem 0.16rem rgba(0, 0, 0, 0.5); }
+.media-controls { display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+.media-btn {
+  display: grid; place-items: center;
+  width: 0.9rem; height: 0.9rem; border-radius: 50%;
+  color: var(--ink);
+  background: var(--surface-3);
+  border: 0.02rem solid var(--line);
+  transition: transform 0.18s ease, background 0.3s ease;
+}
+.media-btn:active { transform: scale(0.92); }
+.media-btn--play { width: 1.3rem; height: 1.3rem; color: #fff; background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%); border-color: transparent; box-shadow: var(--glow); }
+.track-item { display: flex; align-items: center; gap: 0.18rem; }
+.track-item__idx { width: 0.36rem; text-align: center; font-size: 0.2rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.track-item__cover { width: 0.6rem; height: 0.6rem; border-radius: 0.1rem; flex: 0 0 auto; display: grid; place-items: center; color: #fff; font-size: 0.18rem; }
+.source-tabs { display: flex; gap: 0.14rem; flex-wrap: wrap; }
+
+/* ================= 车辆设置 / 倒车影像 ================= */
+.rear-cam {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #05070d;
+  border: 0.02rem solid var(--line);
+}
+.rear-cam__scene { position: absolute; inset: 0; }
+.rear-cam__scene svg { width: 100%; height: 100%; }
+.rear-cam__guide { position: absolute; inset: 0; pointer-events: none; }
+.rear-cam__badge {
+  position: absolute; left: 0.18rem; top: 0.18rem;
+  display: inline-flex; align-items: center; gap: 0.08rem;
+  padding: 0.04rem 0.14rem; border-radius: 999px;
+  font-size: 0.18rem; color: #fff; background: rgba(0, 0, 0, 0.55);
+}
+.rear-cam__badge .dot { width: 0.12rem; height: 0.12rem; border-radius: 50%; background: var(--danger); animation: pulse-dot 1.4s ease-in-out infinite; }
+
+/* ================= 360 全景 ================= */
+.surround-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 5.4rem;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 46%, rgba(43, 108, 255, 0.18) 0%, rgba(5, 8, 16, 0.98) 68%);
+  border: 0.02rem solid var(--line);
+}
+.surround-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.surround-car { transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.radar-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.14rem; }
+.radar-zone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06rem;
+  padding: 0.14rem 0.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+  font-size: 0.19rem;
+  color: var(--ink-2);
+}
+.radar-zone b { font-size: 0.3rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.radar-zone.is-warn { color: var(--warn); border-color: rgba(245, 158, 11, 0.5); background: rgba(245, 158, 11, 0.12); }
+.radar-zone.is-alarm { color: var(--danger); border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.16); }
+.cam-tabs { display: flex; gap: 0.14rem; }
+.alarm-banner {
+  display: flex; align-items: center; gap: 0.16rem;
+  padding: 0.16rem 0.24rem;
+  border-radius: var(--radius);
+  font-size: 0.24rem;
+  color: #fff;
+  background: linear-gradient(160deg, rgba(239, 68, 68, 0.92) 0%, rgba(153, 27, 27, 0.92) 100%);
+  animation: card-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.alarm-banner.is-warn { background: linear-gradient(160deg, rgba(245, 158, 11, 0.92) 0%, rgba(180, 83, 9, 0.92) 100%); }
+
+/* ================= 泊车辅助 ================= */
+.parking-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 5rem;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: repeating-linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0 0.3rem, rgba(15, 23, 42, 0.6) 0.3rem 0.6rem);
+  border: 0.02rem solid var(--line);
+}
+.parking-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.slot {
+  position: absolute;
+  border: 0.04rem dashed rgba(34, 197, 94, 0.75);
+  border-radius: 0.12rem;
+  background: rgba(34, 197, 94, 0.08);
+}
+.trajectory { animation: pulse-dot 2.4s ease-in-out infinite; }
+
+/* ================= 设置 / 驾驶模拟器 ================= */
+.sim {
+  border: 0.02rem solid var(--line-strong);
+  background: linear-gradient(150deg, var(--accent-soft) 0%, var(--surface) 60%);
+}
+.sim__gear { display: flex; gap: 0.18rem; }
+.sim__gear-btn {
+  flex: 1 1 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.04rem;
+  height: 1.1rem;
+  border-radius: var(--radius);
+  font-size: 0.21rem;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+  transition: transform 0.18s ease, background 0.3s ease, color 0.3s ease;
+}
+.sim__gear-btn b { font-size: 0.42rem; line-height: 1; }
+.sim__gear-btn:active { transform: scale(0.95); }
+.sim__gear-btn.is-on { color: #fff; background: linear-gradient(160deg, var(--accent) 0%, #1746a8 100%); border-color: transparent; box-shadow: var(--glow); }
+.sim__speed { display: flex; align-items: center; gap: 0.24rem; }
+.sim__speed input[type='range'] { flex: 1 1 auto; height: 0.5rem; }
+.sim__speed-val { min-width: 1.5rem; text-align: right; font-size: 0.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sim__note { font-size: 0.19rem; color: var(--ink-3); }
+
+.theme-pick { display: flex; gap: 0.2rem; }
+.theme-card {
+  flex: 1 1 0;
+  display: flex; flex-direction: column; gap: 0.12rem;
+  padding: 0.16rem;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+}
+.theme-card.is-on { border-color: var(--accent-2); box-shadow: var(--glow); }
+.theme-card__prev { height: 1.0rem; border-radius: 0.12rem; border: 0.02rem solid var(--line); }
+.theme-card__prev--dark { background: linear-gradient(160deg, #0b1222 0%, #05070d 100%); }
+.theme-card__prev--light { background: linear-gradient(160deg, #ffffff 0%, #dbe4f2 100%); }
+
+.brightness-row { display: flex; align-items: center; gap: 0.24rem; }
+.brightness-row .bar { flex: 1 1 auto; height: 0.28rem; }
+.brightness-row .bar__fill { background: linear-gradient(90deg, var(--ink-3) 0%, #ffffff 100%); }
+
+.about-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.14rem; }
+
+/* ================= 语音面板 ================= */
+.voice-panel { display: flex; flex-direction: column; gap: 0.24rem; }
+.voice-msgs { display: flex; flex-direction: column; gap: 0.16rem; max-height: 4.4rem; overflow-y: auto; padding-right: 0.08rem; }
+.voice-cmds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.14rem; }
+.voice-cmd {
+  display: flex; align-items: center; gap: 0.12rem;
+  padding: 0.14rem 0.2rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.21rem;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+  text-align: left;
+  transition: transform 0.18s ease, background 0.3s ease, color 0.3s ease;
+}
+.voice-cmd:active { transform: scale(0.96); }
+.voice-cmd:hover { color: var(--ink); border-color: var(--line-strong); }
+.voice-input { display: flex; gap: 0.16rem; align-items: center; }
+.voice-input input[type='text'] {
+  flex: 1 1 auto;
+  height: 0.72rem;
+  padding: 0 0.24rem;
+  border-radius: 0.18rem;
+  font-size: 0.24rem;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 0.02rem solid var(--line);
+}
+.voice-input input::placeholder { color: var(--ink-3); }
+.voice-input input:focus { outline: none; border-color: var(--accent-2); }
+
+/* 语音浮层：位于低信息区，不遮挡导航与车速 */
+.voice-floater {
+  position: absolute;
+  left: 50%; bottom: 2.0rem;
+  transform: translateX(-50%);
+  width: min(8.4rem, 94%);
+  padding: 0.26rem 0.3rem;
+  border-radius: var(--radius-lg);
+  background: rgba(8, 14, 30, 0.94);
+  border: 0.02rem solid var(--line-strong);
+  box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(0.3rem);
+  z-index: 70;
+}
+.cockpit[data-theme='light'] .voice-floater { background: rgba(255, 255, 255, 0.96); }
+.voice-floater__head { display: flex; align-items: center; gap: 0.16rem; margin-bottom: 0.18rem; }
+.voice-floater__title { font-size: 0.26rem; font-weight: 600; }
+.voice-floater__hint { font-size: 0.19rem; color: var(--ink-3); }

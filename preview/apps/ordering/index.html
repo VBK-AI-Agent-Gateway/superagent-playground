@@ -18,7 +18,7 @@
         <span class="brand-sub">中餐点餐 · 第一版</span>
       </span>
     </div>
-    <button type="button" class="cart-btn" id="cartBtn" aria-label="查看购物车">
+    <button type="button" class="cart-btn" id="cartBtn" data-act="cart" aria-label="查看购物车" aria-haspopup="dialog" aria-expanded="false">
       <span aria-hidden="true">🛒</span>
       <span class="cart-btn-label">购物车</span>
       <span class="cart-count" id="cartCount">0</span>
@@ -116,7 +116,7 @@
 <!-- ============ 购物车 ============ -->
 <div class="drawer-overlay" id="overlay" hidden></div>
 
-<aside class="cart-drawer" id="cartDrawer" aria-labelledby="cartTitle" aria-hidden="true" hidden>
+<aside class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-labelledby="cartTitle" aria-hidden="true" hidden>
   <div class="drawer-head">
     <h2 class="panel-title" id="cartTitle">购物车</h2>
     <button type="button" class="icon-btn" id="closeCart" data-act="closeCart" aria-label="关闭购物车">✕</button>

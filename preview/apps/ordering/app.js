@@ -381,6 +381,7 @@
     el.cartDrawer.hidden = false;
     el.overlay.hidden = false;
     el.cartDrawer.setAttribute('aria-hidden', 'false');
+    el.cartBtn.setAttribute('aria-expanded', 'true');
     document.body.classList.add('no-scroll');
     el.closeCart.focus();
   }
@@ -389,6 +390,7 @@
     el.cartDrawer.hidden = true;
     el.overlay.hidden = true;
     el.cartDrawer.setAttribute('aria-hidden', 'true');
+    el.cartBtn.setAttribute('aria-expanded', 'false');
     document.body.classList.remove('no-scroll');
   }
 
