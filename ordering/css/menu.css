@@ -1,0 +1,258 @@
+/* ==========================================================================
+   menu.css —— 菜单浏览：餐厅信息条、搜索、分类标签、菜品卡片网格
+   ========================================================================== */
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 92% 12%, rgba(192, 138, 46, 0.28), transparent 55%),
+    linear-gradient(140deg, #7d1f1b 0%, var(--cinnabar) 45%, #b8452f 100%);
+  color: #fff;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  right: -40px;
+  top: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 22px solid rgba(255, 255, 255, 0.07);
+}
+
+.hero__title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.hero__slogan {
+  margin-top: 4px;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  opacity: 0.88;
+}
+
+.hero__notice {
+  position: relative;
+  max-width: 380px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+/* ------------------------------------------------------------------ 工具栏 */
+
+.toolbar { margin: 18px 0 14px; }
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search:focus-within {
+  border-color: var(--cinnabar);
+  box-shadow: 0 0 0 3px var(--cinnabar-soft);
+}
+
+.search__icon { font-size: 14px; opacity: 0.65; }
+
+.search__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  outline: none;
+}
+
+.search__input::placeholder { color: var(--ink-3); }
+
+.search__clear {
+  border: 0;
+  background: var(--paper-3);
+  color: var(--ink-2);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  line-height: 1;
+  font-size: 15px;
+}
+
+/* -------------------------------------------------------------- 分类标签 */
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabs::-webkit-scrollbar { display: none; }
+
+.tabs__item {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all 0.16s ease;
+}
+
+.tabs__item:hover { border-color: var(--cinnabar); color: var(--cinnabar); }
+
+.tabs__item--active {
+  background: linear-gradient(140deg, var(--cinnabar-light), var(--cinnabar));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(158, 43, 37, 0.26);
+}
+
+.tabs__icon { font-size: 15px; }
+
+.tabs__count {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(38, 34, 30, 0.07);
+  color: inherit;
+}
+
+.tabs__item--active .tabs__count { background: rgba(255, 255, 255, 0.24); }
+
+/* ------------------------------------------------------------- 菜品卡片 */
+
+.group { margin-top: 22px; }
+
+.group__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.group__bar {
+  width: 4px;
+  height: 15px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--cinnabar-light), var(--cinnabar));
+}
+
+.group__sub { font-size: 12px; font-weight: 500; color: var(--ink-3); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: rgba(158, 43, 37, 0.35);
+}
+
+.card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card__head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.card__name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card__tag {
+  flex: none;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--cinnabar);
+  background: var(--cinnabar-soft);
+  border: 1px solid rgba(158, 43, 37, 0.22);
+  transform: translateY(-1px);
+}
+
+.card__desc {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.card__sales { white-space: nowrap; }
+
+.card__foot {
+  margin-top: auto;
+  padding-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
