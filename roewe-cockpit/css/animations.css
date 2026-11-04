@@ -1,0 +1,142 @@
+/*!
+ * css/animations.css — 车规级过渡与动效
+ * 安全规则 3：页面切换平滑，无硬切；行车态关闭装饰性动画。
+ */
+
+/* ==================== 页面过渡 ==================== */
+/* 默认：轻微推进（首页 → 次级页面） */
+.view-fade-enter-active, .view-fade-leave-active { transition: opacity 260ms ease, transform 260ms ease; }
+.view-fade-enter-from { opacity: 0; transform: translateY(0.75rem); }
+.view-fade-leave-to   { opacity: 0; transform: translateY(-0.4rem); }
+
+/* 进入子页面：从右侧推入 */
+.view-slide-enter-active, .view-slide-leave-active {
+  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1),
+              transform 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.view-slide-enter-from { opacity: 0; transform: translateX(2.5rem); }
+.view-slide-leave-to   { opacity: 0; transform: translateX(-1.5rem); }
+
+/* 返回上级：从左侧推入 */
+.view-back-enter-active, .view-back-leave-active {
+  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1),
+              transform 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.view-back-enter-from { opacity: 0; transform: translateX(-2.5rem); }
+.view-back-leave-to   { opacity: 0; transform: translateX(1.5rem); }
+
+/* 同级切换（Dock 之间）：交叉淡入，幅度最小 */
+.view-fade-x-enter-active, .view-fade-x-leave-active { transition: opacity 220ms ease; }
+.view-fade-x-enter-from, .view-fade-x-leave-to { opacity: 0; }
+
+/* ==================== 关键帧 ==================== */
+@keyframes mf-dash {
+  to { stroke-dashoffset: -48; }
+}
+
+@keyframes lane-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+@keyframes vo-pulse {
+  0%, 100% { box-shadow: var(--c-shadow), 0 0 0 0 color-mix(in srgb, var(--c-accent) 55%, transparent); }
+  50%      { box-shadow: var(--c-shadow), 0 0 0 1.1rem color-mix(in srgb, var(--c-accent) 0%, transparent); }
+}
+
+@keyframes vo-speak {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+
+@keyframes orb-ring {
+  0%   { transform: scale(0.9); opacity: 0.85; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes tp-breathe {
+  0%, 100% { box-shadow: var(--c-glow); }
+  50%      { box-shadow: 0 0 1.6rem color-mix(in srgb, var(--c-accent) 60%, transparent); }
+}
+
+@keyframes obs-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-warn) 60%, transparent); }
+  100% { box-shadow: 0 0 0 1.6rem color-mix(in srgb, var(--c-warn) 0%, transparent); }
+}
+
+@keyframes radar-alarm {
+  0%, 100% { border-color: color-mix(in srgb, var(--c-bad) 80%, transparent); }
+  50%      { border-color: color-mix(in srgb, var(--c-bad) 25%, transparent); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(0.9rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fall-in {
+  from { opacity: 0; transform: translateY(-0.9rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+@keyframes pulsing {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.pulsing { animation: pulsing 1.4s ease-in-out infinite; }
+
+/* ==================== 浮层进入 / 离开 ==================== */
+.toast-enter-active, .toast-leave-active {
+  transition: opacity 240ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-0.75rem); }
+
+.guard-enter-active, .guard-leave-active {
+  transition: opacity 240ms ease, transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.guard-enter-from, .guard-leave-to { opacity: 0; transform: translate(-50%, 1rem); }
+
+.panel-enter-active, .panel-leave-active {
+  transition: opacity 240ms ease, transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.panel-enter-from, .panel-leave-to { opacity: 0; transform: translateX(1.75rem); }
+
+.sim-enter-active, .sim-leave-active {
+  transition: opacity 220ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sim-enter-from, .sim-leave-to { opacity: 0; transform: translate(-50%, 1.25rem); }
+
+.orb-enter-active, .orb-leave-active {
+  transition: opacity 220ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.orb-enter-from, .orb-leave-to { opacity: 0; transform: translateY(0.75rem) scale(0.94); }
+
+/* 卡片入场（首屏一次性，不循环） */
+.view > .card, .view > .metric-row, .view > .map-wrap, .view > .home-row {
+  animation: rise-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.view > *:nth-child(2) { animation-delay: 40ms; }
+.view > *:nth-child(3) { animation-delay: 80ms; }
+.view > *:nth-child(4) { animation-delay: 120ms; }
+.view > *:nth-child(5) { animation-delay: 150ms; }
+
+/* ==================== 行车态与无障碍：抑制装饰动效 ==================== */
+.driving .view > .card,
+.driving .view > .metric-row,
+.driving .view > .map-wrap,
+.driving .view > .home-row,
+.driving .tp-play.playing,
+.driving .vo-btn.speaking,
+.driving .orb-ring,
+.driving .car-mode-badge {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
