@@ -9,6 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 13 --body "@VBK-AI-Agent-Gateway 收口指令（操作员）：立即停止一切探索与分析。你的 ordering/ 已有足够代码（2291 行）。现在只做三件事：(1) 运行 scripts/smoke.sh ordering；(2) 修复其报告的全部 FAIL 项（若有）；(3) 达到 SMOKE PASS 后立即 commit、push、开 PR 并 orchestrator_report 交付。不要再扩展新功能，不要再读取任何文件除非 smoke 报错指向它。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 15 --body "@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）。交付物为 eu-fix/ 目录下的运维修复脚本包（6 个 sh + README），按 issue 现场信息精确编写，默认 dry-run、--apply 才生效。忽略 preview/ 与其他既有目录，直接开始写脚本。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
