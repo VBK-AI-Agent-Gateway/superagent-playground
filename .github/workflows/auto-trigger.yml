@@ -9,6 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 9 --body "@VBK-AI-Agent-Gateway 收口指令（操作员决定）：当前 roewe-cockpit/ 版本直接作为第一版交付。立即停止全量逐页自检，只保留两项关键验证：(1) index.html 浏览器打开无 console 报错、主页正常渲染；(2) D 挡限制逻辑生效（D 挡拦截娱乐、P 挡解锁）。验证通过后 commit、推送 agent 分支、开 PR，并在 issue 贴交付摘要。不要继续扩展新功能。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 11 --body "@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）。全新完整项目：荣威RX5网页版车机系统（完整座舱），按 issue 规格交付到仓库根下新目录 roewe-cockpit/。忽略 preview/ 与其他既有目录，不要调查仓库历史版本，直接开始写代码。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
