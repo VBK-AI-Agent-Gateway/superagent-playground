@@ -3,34 +3,45 @@
 #
 # 作用：
 #   把 asg-bypass-collect 这个“写风暴源”**彻底屏蔽**：停掉并禁用 timer、停掉循环重启的
-#   oneshot service、mask 两个 unit、清掉残留 analyze.py 进程、把代码目录改名隔离、
+#   oneshot service、把两个 unit 的真实文件移入存档目录 + daemon-reload 后再 mask、
+#   清掉残留 analyze.py 进程、把代码目录改名隔离、
 #   清除历史数据（out/ harness2-ext/ state/ logs/ library/ proposals/，删除前先记录各目录
-#   体积），最后做验证：unit 已屏蔽且无活动实例、bypass 用户无残留进程、90 秒后 out/ 零新写入、
-#   主系统健康与执行前一致。
+#   体积），最后做验证：unit 已屏蔽（<unit> -> /dev/null）且无活动实例、bypass 用户无残留进程、
+#   90 秒后 out/ 零新写入、主系统健康与执行前一致。
 #   **只屏蔽执行路径，绝不触碰主系统**（wagate / ASG 网关 / ai-gateway / m3 / billing / nginx
 #   零改动，只在首尾各只读采集一次健康快照做前后对比）。
 #
 # 回退方法（脚本结尾也会再次打印）：
 #   * 功能（unit）可恢复：
 #       systemctl unmask asg-bypass-collect.timer asg-bypass-collect.service
+#       mv /etc/systemd/system/eu-fix-07-shield-bypass.<ts>.bak/asg-bypass-collect.service \
+#          /etc/systemd/system/eu-fix-07-shield-bypass.<ts>.bak/asg-bypass-collect.timer \
+#          /etc/systemd/system/
+#       systemctl daemon-reload
 #       systemctl enable --now asg-bypass-collect.timer
 #       mv /opt/asg-harness2-bypass/bin.disabled /opt/asg-harness2-bypass/bin
-#     （`disable` 只是移除 wants 软链，`enable --now` 会重建；unmask 会删除 /etc/systemd/system
-#       下的 /dev/null 软链，恢复 unit 可见性。）
+#     （`disable` 只是移除 wants 软链，`enable --now` 会重建；unmask 会删掉 mask 时创建的
+#       /dev/null 软链；第 3 步移走的真实 unit 文件**原件保留在存档目录**
+#       /etc/systemd/system/eu-fix-07-shield-bypass.<ts>.bak/，必须 mv 回原目录再 daemon-reload。
+#       存档目录名带时间戳，脚本会在执行时打印；请把它连同日志一起记下。）
 #   * 数据不可恢复：第 6 步删除的 out/ harness2-ext/ state/ logs/ library/ proposals/
 #     **无法还原**（操作员已知情），这就是该步骤的目的——消除 7.8G+ 的写风暴产物与历史观测数据。
 #   * 不在回退范围内的保留物：/opt/asg-harness2-bypass/README.md、CONCLUSION*.md（原地保留存档）。
-#   * 日志：/var/log/eu-fix/07-shield-bypass.<ts>.log 记录每一步与删除前体积。
+#   * 日志：/var/log/eu-fix/07-shield-bypass.<ts>.log 记录每一步、unit 存档目录与删除前体积。
 #
 # 风险：
 #   * **第 6 步 rm -rf 是不可逆的数据删除**（操作员明确追加指令，知情授权）。删除清单硬编码在
 #     脚本常量 DATA_PURGE_DIRS 中，只允许 /opt/asg-harness2-bypass/ 下的直接子目录；任何一项
 #     解析异常（为空、非绝对路径、越出 BYPASS_ROOT）都会直接 die，绝不递归到父目录。
+#   * 第 3 步会**移走** /etc/systemd/system/asg-bypass-collect.{service,timer} 两个真实 unit 文件
+#     （不是删除：先 cp -p 备份到存档目录再 mv，两个文件都在 /etc/systemd/system 下，属同一文件
+#     系统内的改名）。若目标名已是软链则只告警、不动它。移走后会执行一次 daemon-reload——这是
+#     本脚本唯一的全局 systemd 动作，但它不重启/不停止任何主系统服务，只让 systemd 重读 unit 文件。
 #   * 误伤主系统的风险由三条兜底控制：(1) 全程只操作 asg-bypass-collect 的 unit 与
 #     /opt/asg-harness2-bypass 下的路径；(2) pkill 限定 `-u bypass` 与 `-f analyze.py`；
 #     (3) 首尾主系统健康快照必须一致，不一致则打印醒目告警（脚本自身不应造成差异）。
 #   * mask 之后即使有人手动 `systemctl start` 也会被拒绝，属预期效果；恢复见上面的回退方法。
-#   * 建议在业务低峰执行；脚本不重启任何主系统服务，也不执行 daemon-reload。
+#   * 建议在业务低峰执行；除上述一次 daemon-reload 外，脚本不重启任何主系统服务。
 #
 # 自检说明（开发机无法模拟 systemd）：
 #   本脚本只用 `bash -n` 做语法校验；because 本机没有 systemd/现场，**无法真实演练**，所以 dry-run
@@ -308,8 +319,71 @@ step "第 2 步：停止 $BYPASS_SERVICE（当前非活动时报错忽略）"
 run_allow_fail "停止 service（已非活动则报错忽略）" systemctl stop "$BYPASS_SERVICE"
 
 # ---- 第 3 步：mask 两个 unit ----------------------------------------------------
-step "第 3 步：mask 两个 unit（防任何手动/依赖拉起）"
+# 关键（操作员实测缺陷修复，issue #17 comment 6646622604）：
+#   现场 unit 文件真实存在于 /etc/systemd/system/ 时，`systemctl mask` 需要在该路径创建
+#   `<unit> -> /dev/null` 软链，但目标名已被真实 unit 文件占用，systemd 会直接拒绝：
+#     Failed to mask ...: File exists
+#   而旧版脚本在 set -eu 下会让整个脚本中止，导致第 4 步及之后全部未执行。
+#   正确顺序：先把真实 unit 文件 mv 到存档目录（同为 /etc/systemd/system 下的 unit 文件移走，
+#   系统里该 unit 从此不存在）+ daemon-reload，再 mask —— 此时 mask 只是创建指向 /dev/null
+#   的同名软链，不会再撞已存在的文件。
+step "第 3 步：mask 两个 unit（先把真实 unit 文件移入存档目录 + daemon-reload，再 mask）"
+UNIT_ARCHIVE_DIR="$UNIT_DIR/eu-fix-07-shield-bypass.$(date +%Y%m%d%H%M%S).bak"
+
+info "3.1 建立 unit 存档目录：$UNIT_ARCHIVE_DIR"
+run "建立 unit 存档目录（含显式权限，避免 root umask）" mkdir -p -m 0755 "$UNIT_ARCHIVE_DIR"
+
+info "3.2 把已存在的真实 unit 文件移入存档目录（不存在则跳过；移走前记录内容摘要）："
+if is_apply; then
+  for u in "${BYPASS_UNITS[@]}"; do
+    f="$UNIT_DIR/$u"
+    if [ -f "$f" ] && [ ! -L "$f" ]; then
+      info "  移动 $f -> $UNIT_ARCHIVE_DIR/$u"
+      cp -p "$f" "$UNIT_ARCHIVE_DIR/$u"
+      run "移走真实 unit 文件 $u" mv "$f" "$UNIT_ARCHIVE_DIR/$u"
+    elif [ -L "$f" ]; then
+      warn "  $f 是软链而非真实 unit 文件，跳过移动（避免误删）；请人工确认现场。"
+    else
+      info "  不存在真实 unit 文件，跳过：$f"
+    fi
+  done
+  if [ -d "$UNIT_ARCHIVE_DIR" ]; then
+    record "存档内容清单："; ls -l "$UNIT_ARCHIVE_DIR" 2>&1 | tee -a "$LOG_FILE" || true
+  fi
+  record "daemon-reload（让 systemd 看到 unit 文件已被移走）……"
+  # 只做 daemon-reload，不 restart 任何服务；主系统运行中的 unit 不受影响。
+  systemctl daemon-reload 2>&1 | tee -a "$LOG_FILE" || warn "daemon-reload 返回非 0，请人工确认。"
+else
+  for u in "${BYPASS_UNITS[@]}"; do
+    printf '          $ [ -f %s/%s ] && cp -p %s/%s %s/%s && mv %s/%s %s/%s\n' \
+      "$UNIT_DIR" "$u" "$UNIT_DIR" "$u" "$UNIT_ARCHIVE_DIR" "$u" "$UNIT_DIR" "$u" "$UNIT_ARCHIVE_DIR" "$u"
+  done
+  printf '          $ systemctl daemon-reload\n'
+  printf '          （若两个 unit 文件都不存在则跳过移动；软链会被跳过并告警，不会误删）\n'
+fi
+
+info "3.3 mask 两个 unit（此时路径已空，mask 创建 <unit> -> /dev/null 软链）"
 run "mask service 与 timer" systemctl mask "${BYPASS_UNITS[@]}"
+
+info "3.4 校验：两个 unit 名字均应指向 /dev/null"
+if is_apply; then
+  record "$ ls -l $UNIT_DIR/${BYPASS_UNITS[0]} $UNIT_DIR/${BYPASS_UNITS[1]}"
+  record "$ readlink -f $UNIT_DIR/${BYPASS_UNITS[0]} $UNIT_DIR/${BYPASS_UNITS[1]}   # 期望 /dev/null /dev/null"
+  ls -l "$UNIT_DIR/${BYPASS_UNITS[0]}" "$UNIT_DIR/${BYPASS_UNITS[1]}" 2>&1 | tee -a "$LOG_FILE" || true
+  for u in "${BYPASS_UNITS[@]}"; do
+    tgt="$(readlink -f "$UNIT_DIR/$u" 2>/dev/null || true)"
+    if [ "$tgt" = "/dev/null" ]; then
+      info "  OK：$u -> /dev/null"
+    else
+      warn "  $u 未指向 /dev/null（readlink -f = '${tgt:-空}'），mask 可能未生效；请人工确认。"
+    fi
+  done
+else
+  printf '          $ ls -l %s/%s %s/%s\n' "$UNIT_DIR" "${BYPASS_UNITS[0]}" "$UNIT_DIR" "${BYPASS_UNITS[1]}"
+  printf '          $ readlink -f %s/%s %s/%s   # 期望两者均为 /dev/null\n' \
+    "$UNIT_DIR" "${BYPASS_UNITS[0]}" "$UNIT_DIR" "${BYPASS_UNITS[1]}"
+  printf '          （apply 时若非 /dev/null 会打印醒目告警）\n'
+fi
 
 # ---- 第 4 步：清理残留 analyze.py 进程 ------------------------------------------
 step "第 4 步：清理 $BYPASS_USER 用户的残留 $BYPASS_PROC_TOKEN 进程，并断言为 0"
@@ -424,7 +498,13 @@ if is_apply; then
 fi
   printf '  systemctl stop/disable %s\n' "$BYPASS_TIMER"
 printf '  systemctl stop %s（忽略非活动报错）\n' "$BYPASS_SERVICE"
+printf '  mkdir -p -m 0755 %s\n' "$UNIT_ARCHIVE_DIR"
+printf '  cp -p %s/{service,timer} %s/ && mv %s/{service,timer} %s/   # 移走真实 unit 文件（原件即备份）\n' \
+  "$UNIT_DIR" "$UNIT_ARCHIVE_DIR" "$UNIT_DIR" "$UNIT_ARCHIVE_DIR"
+printf '  systemctl daemon-reload\n'
 printf '  systemctl mask %s %s\n' "${BYPASS_UNITS[0]}" "${BYPASS_UNITS[1]}"
+printf '  ls -l %s/%s %s/%s ; readlink -f …   # 校验两者均指向 /dev/null\n' \
+  "$UNIT_DIR" "${BYPASS_UNITS[0]}" "$UNIT_DIR" "${BYPASS_UNITS[1]}"
 printf '  pkill -u %s -f %s ; 断言 pgrep 计数为 0\n' "$BYPASS_USER" "$BYPASS_PROC_TOKEN"
 printf '  mv %s %s\n' "$BYPASS_BIN" "$BYPASS_BIN_DISABLED"
 for d in "${DATA_PURGE_DIRS[@]}"; do printf '  du -sh %s/%s ; rm -rf %s/%s\n' "$BYPASS_ROOT" "$d" "$BYPASS_ROOT" "$d"; done
@@ -435,10 +515,12 @@ printf '  systemctl is-active %s ; docker inspect %s --format {{.State.Running}}
 printf '  （apply 前的防新变化重查）crontab -u %s -l ; grep -rl "harness2\\|asg-bypass" /etc/systemd/system /etc/cron.d /etc/crontab\n' "$BYPASS_USER"
 
 step "回退方法（请连同输出一起存档）"
-log "  1) 恢复功能（unit 与代码目录）："
+log "  1) 恢复功能（真实 unit 文件 + 代码目录）："
 log "     systemctl unmask $BYPASS_TIMER $BYPASS_SERVICE"
+log "     mv $UNIT_ARCHIVE_DIR/* $UNIT_DIR/ && systemctl daemon-reload   # 把第 3 步移走的 unit 原件放回"
 log "     systemctl enable --now $BYPASS_TIMER"
 log "     mv $BYPASS_BIN_DISABLED $BYPASS_BIN"
+log "     （unit 原件存档目录：$UNIT_ARCHIVE_DIR）"
 log "  2) 数据不可恢复：第 6 步删除的 ${DATA_PURGE_DIRS[*]} 无法还原（操作员已知情）。"
 log "  3) 未删除的存档：$BYPASS_ROOT/README.md 与 $BYPASS_ROOT/CONCLUSION*.md 仍在原地。"
 
