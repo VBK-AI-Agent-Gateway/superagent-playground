@@ -356,7 +356,7 @@ function issueBody(spec: { title: string; body: string }): string {
 		"",
 		spec.body.trim(),
 		"",
-	];
+	].join("\n");
 }
 
 const TRIGGER_COMMENT =
