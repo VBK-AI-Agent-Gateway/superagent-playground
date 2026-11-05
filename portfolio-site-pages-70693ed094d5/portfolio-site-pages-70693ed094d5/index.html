@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>林小舟 · 个人作品集 | 首页</title>
+  <meta name="description" content="林小舟的个人作品集：前端开发与界面设计，包含个人简介、技能方向和作品入口。">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+</head>
+<body data-page="home">
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html">
+        <span class="brand__mark" aria-hidden="true">林</span>
+        <span>林小舟 · 作品集</span>
+      </a>
+      <nav class="site-nav" aria-label="主导航">
+        <ul>
+          <li><a href="index.html" data-nav="home">首页</a></li>
+          <li><a href="works.html" data-nav="works">作品</a></li>
+          <li><a href="contact.html" data-nav="contact">联系我</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container">
+
+      <!-- 主视觉 / 头像 -->
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__content">
+          <span class="hero__eyebrow">前端开发 · 界面设计</span>
+          <h1 class="hero__title" id="hero-title">你好，我是林小舟</h1>
+          <p class="hero__text">
+            一名专注于 Web 前端的开发者，喜欢把复杂的需求拆成清晰、克制的界面。
+            五年来我做过企业官网、后台系统与移动端页面，习惯用纯 HTML/CSS/JS
+            把设计稿还原到像素级，也愿意为可维护性多做一层抽象。
+          </p>
+          <p class="hero__text">
+            目前可承接网站改版、落地页开发与设计还原类合作。
+          </p>
+          <div class="hero__actions">
+            <a class="btn" href="works.html">查看我的作品</a>
+            <a class="btn btn--ghost" href="contact.html">联系我</a>
+          </div>
+        </div>
+        <div class="hero__aside">
+          <div>
+            <div class="avatar" role="img" aria-label="头像占位图：渐变圆形，可替换为 assets/ 下的真实头像">
+              <span aria-hidden="true">林</span>
+            </div>
+            <p class="avatar__hint">头像占位 · 可替换为 assets/avatar.png</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 技能 / 服务简介 -->
+      <section class="section" aria-labelledby="skills-title">
+        <h2 class="section__title" id="skills-title">我能做什么</h2>
+        <p class="section__lead">从界面实现到工程化细节，覆盖一个静态站点从设计到上线的全过程。</p>
+
+        <div class="cards">
+          <article class="card">
+            <div class="card__icon" aria-hidden="true">01</div>
+            <h3>界面实现与还原</h3>
+            <p>用语义化 HTML 与手写 CSS（Flexbox / Grid）还原设计稿，保证在不同屏幕下都不错位。</p>
+          </article>
+          <article class="card">
+            <div class="card__icon" aria-hidden="true">02</div>
+            <h3>响应式与兼容</h3>
+            <p>移动优先的响应式布局，处理断点、长文本与触屏交互，兼顾老浏览器的基础可用性。</p>
+          </article>
+          <article class="card">
+            <div class="card__icon" aria-hidden="true">03</div>
+            <h3>轻量交互开发</h3>
+            <p>用原生 JavaScript 实现表单校验、状态提示与动效，不引入框架也能保持代码清晰。</p>
+          </article>
+          <article class="card">
+            <div class="card__icon" aria-hidden="true">04</div>
+            <h3>性能与可维护性</h3>
+            <p>零依赖、零构建的交付方式，资源本地化、结构可读，方便后续接手的人继续维护。</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- 作品与联系入口 -->
+      <section class="section" aria-labelledby="entry-title">
+        <h2 class="section__title" id="entry-title">接下来</h2>
+        <p class="section__lead">作品列表收录了四个近期项目；如果你想聊聊合作，直接给我留言即可。</p>
+
+        <div class="cards">
+          <a class="card card--link" href="works.html">
+            <h3>作品列表 →</h3>
+            <p>四个项目的背景、职责与技术要点，含演示与源码入口。</p>
+          </a>
+          <a class="card card--link" href="contact.html">
+            <h3>联系方式 →</h3>
+            <p>填写姓名、邮箱与留言即可发起沟通，我通常在 1～2 个工作日内回复。</p>
+          </a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <p>© <span data-year>2026</span> 林小舟 · 纯静态作品集（零依赖、零构建）</p>
+      <ul class="site-footer__links">
+        <li><a href="index.html">首页</a></li>
+        <li><a href="works.html">作品</a></li>
+        <li><a href="contact.html">联系我</a></li>
+      </ul>
+    </div>
+  </footer>
+</body>
+</html>

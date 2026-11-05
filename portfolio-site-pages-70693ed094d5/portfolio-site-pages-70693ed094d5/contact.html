@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>联系我 | 林小舟 · 个人作品集</title>
+  <meta name="description" content="通过联系表单与林小舟取得联系：填写姓名、邮箱与留言内容。">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+  <script src="js/contact.js" defer></script>
+</head>
+<body data-page="contact">
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html">
+        <span class="brand__mark" aria-hidden="true">林</span>
+        <span>林小舟 · 作品集</span>
+      </a>
+      <nav class="site-nav" aria-label="主导航">
+        <ul>
+          <li><a href="index.html" data-nav="home">首页</a></li>
+          <li><a href="works.html" data-nav="works">作品</a></li>
+          <li><a href="contact.html" data-nav="contact">联系我</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container">
+
+      <section class="section" aria-labelledby="contact-title">
+        <h2 class="section__title" id="contact-title">联系我</h2>
+        <p class="section__lead">
+          填写下面的表单即可发起沟通。带 <span class="required">*</span> 的字段为必填项，
+          提交前会在浏览器本地完成校验。
+        </p>
+
+        <div class="contact-layout">
+
+          <div class="form-card">
+            <form id="contact-form" novalidate>
+              <div class="field">
+                <label for="name">姓名 <span class="required" aria-hidden="true">*</span></label>
+                <input id="name" name="name" type="text" required minlength="2" maxlength="40"
+                       autocomplete="name" placeholder="请输入您的姓名" aria-describedby="name-error">
+                <span class="field__error" id="name-error" role="alert"></span>
+              </div>
+
+              <div class="field">
+                <label for="email">邮箱 <span class="required" aria-hidden="true">*</span></label>
+                <input id="email" name="email" type="email" required maxlength="80"
+                       autocomplete="email" placeholder="name@example.com" aria-describedby="email-error">
+                <span class="field__error" id="email-error" role="alert"></span>
+              </div>
+
+              <div class="field">
+                <label for="message">留言 <span class="required" aria-hidden="true">*</span></label>
+                <textarea id="message" name="message" required minlength="10" maxlength="1000"
+                          placeholder="简单说明项目背景、期望时间与预算范围" aria-describedby="message-error message-hint"></textarea>
+                <span class="field__hint" id="message-hint">至少 10 个字符，最多 1000 个字符。</span>
+                <span class="field__error" id="message-error" role="alert"></span>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn" type="submit">提交留言</button>
+                <button class="btn btn--ghost" type="reset">重置</button>
+                <p class="form-note">本站为纯静态演示，提交不会真实发送邮件。</p>
+              </div>
+
+              <p class="form-status" id="form-status" role="status" tabindex="-1" hidden></p>
+            </form>
+          </div>
+
+          <aside class="contact-aside" aria-labelledby="aside-title">
+            <h3 id="aside-title">其他联系方式</h3>
+            <ul>
+              <li>邮箱：hello@example.com（工作日 1～2 天内回复）</li>
+              <li>所在地：中国 · 杭州（可远程协作）</li>
+              <li>可接类型：官网改版、落地页、设计稿还原</li>
+              <li>暂不承接：需要后端服务的定制系统</li>
+            </ul>
+          </aside>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <p>© <span data-year>2026</span> 林小舟 · 纯静态作品集（零依赖、零构建）</p>
+      <ul class="site-footer__links">
+        <li><a href="index.html">首页</a></li>
+        <li><a href="works.html">作品</a></li>
+        <li><a href="contact.html">联系我</a></li>
+      </ul>
+    </div>
+  </footer>
+</body>
+</html>

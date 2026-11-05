@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>作品列表 | 林小舟 · 个人作品集</title>
+  <meta name="description" content="林小舟的作品列表：四个前端与界面设计项目的简介、技术要点与演示入口。">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+</head>
+<body data-page="works">
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html">
+        <span class="brand__mark" aria-hidden="true">林</span>
+        <span>林小舟 · 作品集</span>
+      </a>
+      <nav class="site-nav" aria-label="主导航">
+        <ul>
+          <li><a href="index.html" data-nav="home">首页</a></li>
+          <li><a href="works.html" data-nav="works">作品</a></li>
+          <li><a href="contact.html" data-nav="contact">联系我</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container">
+
+      <section class="section" aria-labelledby="works-title">
+        <h2 class="section__title" id="works-title">作品列表</h2>
+        <p class="section__lead">
+          以下是我近期参与或独立完成的四个项目，按时间倒序排列。
+          缩略图为纯 CSS 占位块（对应 assets/ 目录中的图片位），点击标题或「查看详情」可跳转外链。
+        </p>
+
+        <div class="works-grid">
+
+          <article class="work">
+            <div class="work__thumb work__thumb--a" role="img" aria-label="项目缩略图占位：门店点餐系统">点餐</div>
+            <div class="work__body">
+              <span class="work__tag">Web 应用</span>
+              <h3 class="work__title">扫码点餐系统</h3>
+              <p class="work__desc">
+                面向中小餐厅的扫码点餐流程：选桌台、加入购物车、提交订单与确认页，
+                重点解决高峰期下单路径过长的问题。
+              </p>
+              <ul class="work__stack">
+                <li>HTML/CSS</li>
+                <li>原生 JS</li>
+                <li>响应式</li>
+              </ul>
+              <p><a class="work__link" href="https://example.com/projects/ordering">查看详情 →</a></p>
+            </div>
+          </article>
+
+          <article class="work">
+            <div class="work__thumb work__thumb--b" role="img" aria-label="项目缩略图占位：数据看板">看板</div>
+            <div class="work__body">
+              <span class="work__tag">数据可视化</span>
+              <h3 class="work__title">运营数据看板</h3>
+              <p class="work__desc">
+                为运营团队搭建的指标看板，聚合订单、活跃与转化数据，
+                用卡片与图表分区降低阅读成本，支持一键导出。
+              </p>
+              <ul class="work__stack">
+                <li>CSS Grid</li>
+                <li>Canvas</li>
+                <li>无障碍</li>
+              </ul>
+              <p><a class="work__link" href="https://example.com/projects/dashboard">查看详情 →</a></p>
+            </div>
+          </article>
+
+          <article class="work">
+            <div class="work__thumb work__thumb--c" role="img" aria-label="项目缩略图占位：品牌官网">官网</div>
+            <div class="work__body">
+              <span class="work__tag">官网改版</span>
+              <h3 class="work__title">品牌官网改版</h3>
+              <p class="work__desc">
+                将旧版官网重构为静态多页站点，统一导航与页脚组件，
+                首屏加载体积下降约 60%，内容维护改为直接编辑 HTML。
+              </p>
+              <ul class="work__stack">
+                <li>语义化 HTML</li>
+                <li>Flexbox</li>
+                <li>性能优化</li>
+              </ul>
+              <p><a class="work__link" href="https://example.com/projects/brand-site">查看详情 →</a></p>
+            </div>
+          </article>
+
+          <article class="work">
+            <div class="work__thumb work__thumb--d" role="img" aria-label="项目缩略图占位：设计系统">系统</div>
+            <div class="work__body">
+              <span class="work__tag">设计系统</span>
+              <h3 class="work__title">组件样式库</h3>
+              <p class="work__desc">
+                整理团队常用的按钮、表单与卡片样式，沉淀为一份 CSS 变量驱动的样式库，
+                供三个业务项目复用。
+              </p>
+              <ul class="work__stack">
+                <li>CSS 变量</li>
+                <li>设计令牌</li>
+                <li>文档</li>
+              </ul>
+              <p><a class="work__link" href="https://example.com/projects/style-kit">查看详情 →</a></p>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="works-cta">
+        <h2 class="section__title" id="works-cta">想了解更多？</h2>
+        <p class="section__lead">每个项目的完整过程与取舍，都可以在沟通时展开说明。</p>
+        <p><a class="btn" href="contact.html">给我留言</a></p>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <p>© <span data-year>2026</span> 林小舟 · 纯静态作品集（零依赖、零构建）</p>
+      <ul class="site-footer__links">
+        <li><a href="index.html">首页</a></li>
+        <li><a href="works.html">作品</a></li>
+        <li><a href="contact.html">联系我</a></li>
+      </ul>
+    </div>
+  </footer>
+</body>
+</html>
