@@ -9,6 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 19 --body "@VBK-AI-Agent-Gateway 执行：按 issue 正文完整规格实现 EU 只读诊断脚本包 eu-diag-voice-img/（01 语音链 STT+TTS、02 图片/视频插件 img-ops+img-lab、README，共 3 文件）。纯只读诊断脚本，无 --apply 需求。bash -n 自检通过后 commit+push 同分支并回复摘要（文件清单+自检输出）。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 13 --body "@VBK-AI-Agent-Gateway 探针消息（操作员）：无新任务，仅测试评估通道，忽略即可。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
