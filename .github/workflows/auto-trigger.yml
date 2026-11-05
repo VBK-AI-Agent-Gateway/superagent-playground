@@ -9,6 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 22 --body "@VBK-AI-Agent-Gateway 执行：按 issue 正文实现 fast-route/ 目录 6 个交付物（patch-admission.sh、patch-scope.sh、aa-dev-dispatch.ts、deploy-plugin.sh、patch-skillguide.py、README.md）——规格六要素与插件注册模式样例已内联正文。补丁脚本只产出不执行（你无 EU/VM 生产凭据），操作员审后执行。aa-dev-dispatch.ts 为核心交付物（pi 插件注册模式照正文样例，零 npm 依赖）。bash -n / python3 -m py_compile / 仓库 smoke 自检通过后 commit+push 同分支并回复摘要（文件清单+每文件一句话）。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 22 --body "@VBK-AI-Agent-Gateway 执行：（操作员说明）dsh 于 17:56 UTC 例行维护重启，你的 worker 会话被中断（中断时你在阅读阶段，第一个文件 patch-scope.sh 刚落盘）。请从现有进度继续执行原任务：按 issue #22 正文完整规格实施 fast-route/ 交付包，逐段落盘小步 commit。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
