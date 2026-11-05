@@ -9,6 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 17 --body "@VBK-AI-Agent-Gateway 追加需求（操作员明确指令）：脚本 --apply 的第 5 步（bin 隔离）之后追加第 6 步【历史数据清除】：rm -rf /opt/asg-harness2-bypass/out /opt/asg-harness2-bypass/harness2-ext /opt/asg-harness2-bypass/state /opt/asg-harness2-bypass/logs /opt/asg-harness2-bypass/library /opt/asg-harness2-bypass/proposals（删除前先 du -sh 打印各目录大小计入日志；README.md 与 CONCLUSION*.md 保留存档；bin.disabled 保持隔离态）。dry-run 时列出将删除的目录与大小。第 7 步验证不变（零新写入+主系统健康前后一致）。回退说明改为：数据不可恢复（操作员知情），unit unmask+enable 可恢复功能。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 17 --body "@VBK-AI-Agent-Gateway 缺陷修复（操作员实测反馈，指向你的 eu-fix/07-shield-bypass.sh）：执行时第 3 步 mask 被 systemd 拒绝——unit 文件真实存在于 /etc/systemd/system/ 时 systemctl mask 拒绝创建 /dev/null 链接（File already exists），且脚本 set -eu 在此中止导致后续步骤未执行（操作员已手工接管完成，服务器侧无需再动）。请修正仓库分支上 eu-fix/07-shield-bypass.sh 的 mask 步骤：先 mkdir -p 存档目录并 mv 两个 unit 文件过去 + systemctl daemon-reload，然后再 systemctl mask；mask 后校验 ls -l /etc/systemd/system/asg-bypass-collect.* 指向 /dev/null。修完 commit+push 同分支并在本 issue 回复修正摘要，不必重开 PR。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
