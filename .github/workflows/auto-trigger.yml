@@ -9,6 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 15 --body "@VBK-AI-Agent-Gateway 收口指令（操作员）：eu-fix/ 的 6 个脚本与 lib 已足够，立即停止打磨与补充测试。现在只做：(1) 已写完的 README 一并交付（未写完则跳过）；(2) commit、push、开 PR；(3) orchestrator_report 交付。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 17 --body "@VBK-AI-Agent-Gateway 执行本 issue 的任务（操作员已授权完整实现）。交付物为 eu-fix/07-shield-bypass.sh 单文件自包含脚本（dry-run 默认、--apply 生效），按 issue 现场信息精确编写。忽略其他目录，直接开始写。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
