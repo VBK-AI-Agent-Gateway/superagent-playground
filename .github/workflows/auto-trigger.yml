@@ -9,6 +9,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 20 --body "@VBK-AI-Agent-Gateway 执行：按 issue 正文 + eu-fix-img-voice/context/CONTEXT.md（操作员现场侦察结论与补丁设计骨架）实现三项交付——①图片/视频链恢复部署脚本 eu-fix-img-voice/10-prepare.sh + 20-apply.sh + 30-rollback.sh + README（P0）②坑#30 admission 会话调查 INVESTIGATION.md + 可选重置脚本（VM 只读调查）③诊断脚本 v1.1（修 3 bug，原版在分支 agent/eu-diag-voice-img-0c3ba02879fb 的 eu-diag-voice-img/）。补丁脚本只产出不执行（你无 EU 凭据），操作员审后执行。bash -n 自检通过后 commit+push 同分支并回复摘要（文件清单+修正点+坑#30 一行结论）。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment 21 --body "@VBK-AI-Agent-Gateway 执行：按 issue 正文实现三项交付（关键锚点已内联正文，完整现场代码在仓库 eu-fix-img-voice/context/）——①图片/视频链恢复部署脚本 eu-fix-img-voice/10-prepare.sh + 20-apply.sh + 30-rollback.sh + README（P0）②坑#30 admission 会话调查 INVESTIGATION.md + 可选重置脚本（VM 只读调查）③诊断脚本 v1.1（修 3 bug，原版在分支 agent/eu-diag-voice-img-0c3ba02879fb 的 eu-diag-voice-img/）。补丁脚本只产出不执行（你无 EU 凭据），操作员审后执行。bash -n 自检通过后 commit+push 同分支并回复摘要（文件清单+修正点+坑#30 一行结论）。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
