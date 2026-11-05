@@ -474,42 +474,43 @@ export default function aaDevDispatch(pi: { registerTool: (t: unknown) => void }
 				return out(`派单失败：无法连接 GitHub（${String(e).slice(0, 200)}）。请人工补开 issue。`, true);
 			}
 
-			// 7c) 触发评论：重试 3 次、间隔 5s
+			// 7c) 触发：workflow_dispatch（github-actions[bot] 白名单通道；App 需 Workflows RW）
 			let lastErr = "";
-			for (let attempt = 1; attempt <= 3; attempt++) {
-				try {
-					const c = await gh("POST", `/repos/${OWNER}/${REPO}/issues/${issueNumber}/comments`, {
-						body: TRIGGER_COMMENT,
-					});
-					if (c.ok) {
-						audit({ sid, action: "dispatch", issue: issueNumber, result: "ok" });
-						return out(
-							[
-								`已派单：${issueUrl}`,
-								"",
-								"规格已交给快速通道执行通道，请停止本地自建，等工单结果回传。",
-							].join("\n"),
-						);
-					}
-					lastErr = `HTTP ${c.status} ${c.text.slice(0, 150)}`;
-				} catch (e) {
-					lastErr = String(e).slice(0, 150);
+			try {
+				const d = await gh(
+					"POST",
+					`/repos/${OWNER}/${REPO}/actions/workflows/auto-trigger.yml/dispatches`,
+					{ ref: "main", inputs: { issue_number: String(issueNumber) } },
+				);
+				if (d.ok) {
+					audit({ sid, action: "dispatch", issue: issueNumber, result: "ok" });
+					return out(
+						[
+							`已派单：${issueUrl}`,
+							"",
+							"规格已交给快速通道执行通道，请停止本地自建，等工单结果回传。",
+						].join("\n"),
+					);
 				}
-				if (attempt < 3) await sleep(5000);
+				lastErr = `HTTP ${d.status} ${d.text.slice(0, 150)}`;
+			} catch (e) {
+				lastErr = String(e).slice(0, 150);
 			}
 
-			// 7d) 评论最终失败 → isError，但附 issue URL + 可复制触发评论文本
-			audit({ sid, action: "dispatch", issue: issueNumber, result: `comment failed ${lastErr}` });
+			// 7d) workflow_dispatch 失败 → isError，附两条人工触发路径
+			audit({ sid, action: "dispatch", issue: issueNumber, result: `trigger failed ${lastErr}` });
 			return out(
 				[
-					`工单已创建，但触发评论发送失败（${lastErr}）。`,
+					`工单已创建，但自动触发失败（${lastErr}）。`,
 					"",
 					`工单地址：${issueUrl}`,
-					"请在工单下手工粘贴以下评论以启动执行：",
+					"两种人工触发方式任选其一：",
+					"1. Actions 页手动 Run workflow「auto-trigger」，issue_number 填 " + issueNumber,
+					"2. 用 qintao765 账号在该 issue 下评论：",
 					"",
 					TRIGGER_COMMENT,
 					"",
-					"在评论发出前，请不要本地自建。",
+					"在触发发出前，请不要本地自建。",
 				].join("\n"),
 				true,
 			);
