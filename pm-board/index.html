@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 双击本文件即可打开：无服务器、无构建、无外部资源 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>轻量项目管理 · 任务看板 / 成员列表 / 活动时间线</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- 顶部标题栏：标题 + 数据来源说明 + 重置按钮 -->
+    <header class="app-header">
+      <div class="app-header__main">
+        <h1 class="app-header__title">轻量项目管理</h1>
+        <p class="app-header__sub">小团队（3~10 人）纯前端看板 · 零构建 · 无需服务器</p>
+      </div>
+      <div class="app-header__side">
+        <p class="storage-note" id="storage-note"></p>
+        <button type="button" class="btn btn--ghost" id="reset-btn" title="清空本地数据并恢复初始演示数据">重置演示数据</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- ============ 板块一：任务看板 ============ -->
+      <section class="panel panel--board" aria-labelledby="board-title">
+        <div class="panel__head">
+          <h2 class="panel__title" id="board-title">任务看板</h2>
+          <span class="panel__meta" id="board-meta"></span>
+        </div>
+
+        <!-- 新增任务表单：负责人下拉由 app.js 依据成员列表动态填充 -->
+        <form class="task-form" id="task-form" autocomplete="off">
+          <input class="field field--grow" id="task-title" type="text" placeholder="任务标题（必填）" maxlength="60" required />
+          <select class="field" id="task-owner" aria-label="负责人"></select>
+          <select class="field" id="task-priority" aria-label="优先级"></select>
+          <input class="field" id="task-due" type="date" aria-label="截止日期" />
+          <select class="field" id="task-status" aria-label="所在列"></select>
+          <button class="btn btn--primary" type="submit">新增任务</button>
+        </form>
+
+        <!-- 三列看板容器：列内容由 app.js 渲染 -->
+        <div class="board" id="board"></div>
+      </section>
+
+      <!-- ============ 板块二 + 板块三：成员列表 / 活动时间线 ============ -->
+      <aside class="side">
+        <section class="panel panel--members" aria-labelledby="members-title">
+          <div class="panel__head">
+            <h2 class="panel__title" id="members-title">团队成员</h2>
+            <span class="panel__meta" id="members-meta"></span>
+          </div>
+
+          <form class="member-form" id="member-form" autocomplete="off">
+            <input class="field" id="member-name" type="text" placeholder="姓名（必填）" maxlength="16" required />
+            <input class="field" id="member-role" type="text" placeholder="角色" maxlength="16" />
+            <button class="btn btn--primary" type="submit">新增成员</button>
+          </form>
+          <p class="form-hint">成员在办任务数 = 其名下「待办 + 进行中」任务数；有在办任务的成员不可移除。</p>
+
+          <!-- 成员卡片列表 -->
+          <ul class="members" id="members"></ul>
+        </section>
+
+        <section class="panel panel--timeline" aria-labelledby="timeline-title">
+          <div class="panel__head">
+            <h2 class="panel__title" id="timeline-title">活动时间线</h2>
+            <span class="panel__meta" id="timeline-meta"></span>
+          </div>
+          <p class="form-hint">按时间倒序记录任务创建、任务状态变更、成员增删；数据与看板 / 成员列表联动。</p>
+
+          <!-- 时间线条目列表 -->
+          <ol class="timeline" id="timeline"></ol>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="app-footer">
+      <span>数据仅保存在本机浏览器 localStorage 中，不会上传；「重置演示数据」可恢复初始 mock 数据。</span>
+    </footer>
+  </div>
+
+  <!-- 轻量提示条 -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- 普通 script 标签（非 ES Module），保证 file:// 直接双击可用 -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
