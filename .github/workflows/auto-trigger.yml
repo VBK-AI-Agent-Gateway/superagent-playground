@@ -1,6 +1,11 @@
 name: auto-trigger
 on:
   workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "要触发的 issue 号"
+        required: true
+        type: string
 permissions:
   issues: write
 jobs:
@@ -9,6 +14,6 @@ jobs:
     steps:
       - name: mention
         run: |
-          gh issue comment 22 --body "@VBK-AI-Agent-Gateway 执行：（操作员说明）dsh 于 17:56 UTC 例行维护重启，你的 worker 会话被中断（中断时你在阅读阶段，第一个文件 patch-scope.sh 刚落盘）。请从现有进度继续执行原任务：按 issue #22 正文完整规格实施 fast-route/ 交付包，逐段落盘小步 commit。" --repo VBK-AI-Agent-Gateway/superagent-playground
+          gh issue comment "${{ inputs.issue_number }}" --body "@VBK-AI-Agent-Gateway 执行：按 issue 正文完整规格实现（授权与验收以正文为准）。补丁/脚本只产出不执行（无生产凭据），操作员审后执行。自检通过后 commit+push 同分支并回复摘要（文件清单+每文件一句话）。" --repo VBK-AI-Agent-Gateway/superagent-playground
         env:
           GH_TOKEN: ${{ github.token }}
