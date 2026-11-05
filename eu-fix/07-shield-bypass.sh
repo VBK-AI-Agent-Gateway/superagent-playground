@@ -339,7 +339,9 @@ if is_apply; then
     f="$UNIT_DIR/$u"
     if [ -f "$f" ] && [ ! -L "$f" ]; then
       info "  移动 $f -> $UNIT_ARCHIVE_DIR/$u"
-      cp -p "$f" "$UNIT_ARCHIVE_DIR/$u"
+      # 先备份再移走：两步都在 /etc/systemd/system 与存档子目录之间，同一文件系统内的改名，
+      # 且副本仍留在存档目录，因此原件内容不会丢失。
+      cp -p "$f" "$UNIT_ARCHIVE_DIR/$u" || { err "备份 $f 失败，为避免丢失原件已中止。"; exit 1; }
       run "移走真实 unit 文件 $u" mv "$f" "$UNIT_ARCHIVE_DIR/$u"
     elif [ -L "$f" ]; then
       warn "  $f 是软链而非真实 unit 文件，跳过移动（避免误删）；请人工确认现场。"
