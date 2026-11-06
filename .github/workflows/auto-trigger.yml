@@ -1,0 +1,19 @@
+name: auto-trigger
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "要触发的 issue 号"
+        required: true
+        type: string
+permissions:
+  issues: write
+jobs:
+  mention:
+    runs-on: ubuntu-latest
+    steps:
+      - name: mention
+        run: |
+          gh issue comment "${{ inputs.issue_number }}" --body "@VBK-AI-Agent-Gateway 执行：按 issue 正文完整规格实现（授权与验收以正文为准）。补丁/脚本只产出不执行（无生产凭据），操作员审后执行。自检通过后 commit+push 同分支并回复摘要（文件清单+每文件一句话）。" --repo VBK-AI-Agent-Gateway/superagent-playground
+        env:
+          GH_TOKEN: ${{ github.token }}
