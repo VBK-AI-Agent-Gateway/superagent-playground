@@ -1,0 +1,185 @@
+/* base.css — 设计令牌、重置样式与排版基础 */
+
+:root {
+  /* 品牌色：深蓝作为主色，橙色作为强调色 */
+  --brand-900: #10233f;
+  --brand-800: #16305a;
+  --brand-700: #1d4886;
+  --brand-600: #2563b0;
+  --brand-500: #3b82d6;
+  --brand-100: #e3edfa;
+  --brand-050: #f2f7fd;
+
+  --accent-600: #d97706;
+  --accent-500: #f59e0b;
+  --accent-100: #fef3c7;
+
+  --ink-900: #101828;
+  --ink-700: #344054;
+  --ink-500: #667085;
+  --ink-300: #98a2b3;
+  --ink-200: #d0d5dd;
+  --ink-100: #eaecf0;
+  --ink-050: #f6f7f9;
+  --surface: #ffffff;
+  --canvas: #eef1f6;
+
+  --ok-600: #067647;
+  --ok-100: #d3f8df;
+  --warn-600: #b54708;
+  --warn-100: #fef0c7;
+  --danger-600: #b42318;
+  --danger-100: #fee4e2;
+
+  /* 商机阶段配色（仪表盘与看板共用） */
+  --stage-contact: #7c9cc4;
+  --stage-needs: #4f86c6;
+  --stage-quote: #3f6fb5;
+  --stage-negotiation: #d99a26;
+  --stage-won: #12916b;
+  --stage-lost: #98a2b3;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.1);
+  --shadow-lg: 0 18px 40px rgba(16, 24, 40, 0.22);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --header-height: 60px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--canvas);
+  color: var(--ink-900);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+h1 {
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+h2 {
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+h3 {
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+a {
+  color: var(--brand-600);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.noscript-warning {
+  margin: var(--space-5);
+  padding: var(--space-4);
+  background: var(--danger-100);
+  color: var(--danger-600);
+  border-radius: var(--radius-md);
+}
+
+/* 数字对齐：金额与统计使用等宽数字 */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
