@@ -98,7 +98,7 @@ else
   safe timeout "$T_SHORT" find /srv /app -maxdepth 6 -name 'ws-sync-queue.ts' -not -path '*/node_modules/*'
 fi
 printf '\n--- 4.2 队列数据结构与出队逻辑（-A 12）---\n'
-grep_glob "$PATCH_DIR" "flushPendingSync|onSandboxCreated|lastFlushedSbxId|enqueue|pendingSync|registry|doneFiles|doneSet" '*.ts' -A 12 || \
+grep_glob "$PATCH_DIR" "flushPendingSync|onSandboxCreated|lastFlushedSbxId|enqueue|flushed|pendingSync|registry|doneFiles|doneSet" '*.ts' -A 12 || \
   warn "未命中 ws-sync 队列关键字：队列实现可能在别处（把 4.1 的 find 结果贴回来）"
 printf '\n--- 4.3 落盘处是否建父目录（坑#14：无 mkdir -p 则首写失败）---\n'
 grep_glob "$PATCH_DIR" "mkdir -p|mkdir -p |mkdirSync|ensureDir|writeFileSync|writeFile\(" '*.ts' -B 3 -A 6 || true
