@@ -1,0 +1,324 @@
+/* layout.css — 应用外壳、页面栅格与响应式布局（1280px / 375px） */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ---------- 顶部导航 ---------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--brand-900);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.app-header__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 1440px;
+  min-height: var(--header-height);
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+.brand__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 26px;
+  padding: 0 6px;
+  background: var(--accent-500);
+  border-radius: var(--radius-sm);
+  color: var(--brand-900);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.app-nav__link {
+  display: inline-block;
+  padding: 7px 14px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.app-nav__link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  text-decoration: none;
+}
+
+.app-nav__link.is-active {
+  background: #fff;
+  color: var(--brand-800);
+  font-weight: 600;
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nav-toggle {
+  display: none;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.nav-toggle__bars,
+.nav-toggle__bars::before,
+.nav-toggle__bars::after {
+  display: block;
+  width: 16px;
+  height: 2px;
+  background: #fff;
+  border-radius: 2px;
+  content: "";
+}
+
+.nav-toggle__bars {
+  position: relative;
+}
+
+.nav-toggle__bars::before {
+  position: absolute;
+  top: -5px;
+}
+
+.nav-toggle__bars::after {
+  position: absolute;
+  top: 5px;
+}
+
+/* ---------- 主内容区 ---------- */
+.app-main {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--space-5);
+}
+
+.app-footer {
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  color: var(--ink-500);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------- 页面通用结构 ---------- */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.page-head__main {
+  min-width: 0;
+}
+
+.page-head__title {
+  font-size: 22px;
+}
+
+.page-head__sub {
+  margin-top: 2px;
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+.page-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-4);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.toolbar__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.toolbar__field--grow {
+  flex: 1 1 220px;
+}
+
+.toolbar__spacer {
+  flex: 1 1 auto;
+}
+
+/* 看板：横向滚动容器，窄屏下保持列宽可读 */
+.kanban {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(230px, 1fr);
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  align-items: start;
+}
+
+/* ---------- 响应式：窄屏（375px 目标） ---------- */
+@media (max-width: 720px) {
+  .app-header__bar {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .brand__text {
+    font-size: 14px;
+  }
+
+  .app-nav {
+    order: 3;
+    flex: 1 0 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.18s ease;
+  }
+
+  .app-nav.is-open {
+    max-height: 320px;
+  }
+
+  .app-nav__link {
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+  }
+
+  .app-header__actions {
+    margin-left: auto;
+  }
+
+  .app-main {
+    padding: var(--space-3);
+  }
+
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-head__actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar__field,
+  .toolbar__field--grow {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .kanban {
+    grid-auto-columns: minmax(80%, 1fr);
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .brand__mark {
+    display: none;
+  }
+
+  .app-main {
+    padding: var(--space-2);
+  }
+
+  .stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

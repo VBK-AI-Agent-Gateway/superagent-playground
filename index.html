@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <title>CRM 客户关系管理系统</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#128188;</text></svg>" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+  <!-- 应用外壳：结构静态，内容由视图层按 hash 路由渲染 -->
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header__bar">
+        <button class="icon-btn nav-toggle" id="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false">
+          <span class="nav-toggle__bars" aria-hidden="true"></span>
+        </button>
+        <a class="brand" href="#/dashboard">
+          <span class="brand__mark" aria-hidden="true">CRM</span>
+          <span class="brand__text">客户关系管理系统</span>
+        </a>
+        <nav class="app-nav" id="app-nav" aria-label="主导航">
+          <a class="app-nav__link" data-nav="dashboard" href="#/dashboard">仪表盘</a>
+          <a class="app-nav__link" data-nav="customers" href="#/customers">客户</a>
+          <a class="app-nav__link" data-nav="leads" href="#/leads">线索</a>
+          <a class="app-nav__link" data-nav="deals" href="#/deals">商机</a>
+          <a class="app-nav__link" data-nav="activities" href="#/activities">跟进</a>
+        </nav>
+        <div class="app-header__actions">
+          <button class="btn btn--ghost btn--icon" type="button" id="btn-data" aria-haspopup="true" aria-expanded="false">数据</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main" id="app-main" tabindex="-1">
+      <!-- 视图挂载点 -->
+      <div class="view-host" id="view-host" aria-live="polite"></div>
+    </main>
+
+    <footer class="app-footer">
+      <span>本地存储（localStorage）· 零依赖零构建 · 数据仅保存在当前浏览器</span>
+    </footer>
+  </div>
+
+  <!-- 全局挂载点：模态框、轻提示、数据面板 -->
+  <div class="layer-root" id="layer-root">
+    <div class="modal" id="modal" hidden>
+      <div class="modal__backdrop" data-action="modal-close"></div>
+      <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <header class="modal__head">
+          <h2 class="modal__title" id="modal-title"></h2>
+          <button class="icon-btn" type="button" data-action="modal-close" aria-label="关闭">&times;</button>
+        </header>
+        <div class="modal__body" id="modal-body"></div>
+        <footer class="modal__foot" id="modal-foot"></footer>
+      </div>
+    </div>
+
+    <aside class="data-panel" id="data-panel" hidden aria-label="数据管理">
+      <div class="data-panel__head">
+        <h2 class="data-panel__title">数据管理</h2>
+        <button class="icon-btn" type="button" id="data-panel-close" aria-label="关闭">&times;</button>
+      </div>
+      <div class="data-panel__body">
+        <p class="data-panel__hint">所有数据保存在浏览器 localStorage。导出为 JSON 文件后可备份或迁移到其他浏览器。</p>
+        <div class="data-panel__actions">
+          <button class="btn btn--primary" type="button" id="btn-export">导出 JSON</button>
+          <label class="btn btn--ghost" for="import-file">导入 JSON</label>
+          <input class="visually-hidden" type="file" id="import-file" accept="application/json,.json" />
+          <button class="btn btn--danger" type="button" id="btn-clear">清空数据</button>
+        </div>
+        <input class="visually-hidden" type="file" id="import-deals-file" accept="application/json,.json" />
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <noscript>
+    <p class="noscript-warning">本应用需要启用 JavaScript 才能运行。</p>
+  </noscript>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
