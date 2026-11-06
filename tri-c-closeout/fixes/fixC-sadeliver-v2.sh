@@ -89,6 +89,7 @@ OLD = '''  # dirty top-level untracked dirs only
 
 NEW = '''  # --- v2 交付物根判定（issue #39 D2）-------------------------------------
   # 规则优先级：
+  #   R4 staged：git index 非空（已 add 未 commit）=> 整个 worktree 即交付物
   #   R1 root-is-app：worktree 根存在 index.html => 整个 worktree 就是一个交付物，
   #      提交【全部】未跟踪项（含根级文件），Pages 名取 issue 规格目录名或 worktree 前缀。
   #   R2 单顶层目录：唯一未跟踪顶层目录即交付物根（嵌套时下钻到最浅含 index.html 的目录）。
@@ -96,7 +97,11 @@ NEW = '''  # --- v2 交付物根判定（issue #39 D2）------------------------
   #      若无 index.html 则退化为 worktree 根。
   # 绝不把同一交付物的多个子目录当成多个独立交付物分别 smoke。
   DELIV_ROOT=""
-  if [ -f "$TDIR/index.html" ]; then
+  # R4 staged：worker 已 git add 但未 commit（issue #39 死法）=> 整个 worktree 即交付物
+  STAGED=$(git -C "$TDIR" diff --cached --name-only 2>/dev/null | head -1)
+  if [ -n "$STAGED" ]; then
+    DELIV_ROOT="$TDIR"
+  elif [ -f "$TDIR/index.html" ]; then
     DELIV_ROOT="$TDIR"                      # R1
   else
     DELIV_ROOT=$(cd "$TDIR" && git status --porcelain 2>/dev/null \\
@@ -111,6 +116,7 @@ NEW = '''  # --- v2 交付物根判定（issue #39 D2）------------------------
   fi
   # 提交全部未跟踪项（排除 node_modules/.verify/prune 目标），而不是仅目录
   git -C "$TDIR" add -A -- . ':!node_modules' ':!.verify' 2>/dev/null
+  git -C "$TDIR" add -u 2>/dev/null
   # 交付物根相对 worktree 的路径（用于 Pages 目录名与 smoke 目标）
   DELIV_REL=$(cd "$TDIR" && python3 -c "
 import os,sys

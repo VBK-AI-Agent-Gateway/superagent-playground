@@ -132,7 +132,11 @@ sh -n "$V2" && ok "fixC sh -n 语法通过" || bad "fixC 语法失败"
 
 # 在临时副本上验证 --apply 的补丁确实能跑通且幂等
 TB="$SANDBOX/bin"; mkdir -p "$TB"
-cp /home/qt/bin/sa-deliver.sh "$TB/sa-deliver.sh" 2>/dev/null \
+BASE="/home/qt/bin/sa-deliver.sh"
+B2="/home/qt/bin/sa-deliver.sh.bak.20261106-124725"
+[ -f "$B2" ] || B2="/home/qt/bin/sa-deliver.sh"
+[ -n "$B2" ] && BASE="$B2"
+cp "$BASE" "$TB/sa-deliver.sh" 2>/dev/null \
   || { say "  （宿主无 sa-deliver.sh，跳过脚本级补丁验证）"; }
 if [ -f "$TB/sa-deliver.sh" ]; then
   SC="$SANDBOX/scope.md"; printf -- '- 现有规则\n' > "$SC"
@@ -147,6 +151,15 @@ if [ -f "$TB/sa-deliver.sh" ]; then
   OUT2=$(sh "$V2" --apply --bin "$TB" --scope "$SC" 2>&1)
   echo "$OUT2" | grep -q 'P1: 已是 v2' && ok "重复 --apply 幂等（P1 跳过）" || bad "重复 --apply 不幂等"
 fi
+
+say ""
+say "== R4 staged 用例：worker 已 git add 未 commit 的 worktree 必须被 v2 收口 =="
+HS="/home/qt/bin/sa-deliver.sh"
+[ -f "$HS" ] || HS="$TB/sa-deliver.sh"
+grep -q 'diff --cached' "$HS" && ok "R4 检测段存在（diff --cached）" \
+  || bad "缺 R4 staged 检测段"
+grep -q 'add -u' "$HS" && ok "R4 提交含 add -u（暂存文件一并提交）" \
+  || bad "缺 add -u"
 
 say ""
 say "== 结果：PASS=$PASS FAIL=$FAIL =="
