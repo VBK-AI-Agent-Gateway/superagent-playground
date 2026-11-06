@@ -84,15 +84,16 @@ notify() {
 # 现场形态以 01-multi-file.sh 第 2/3/4 节输出为准；锚不匹配就整体中止，不猜、不发散。
 # ==========================================================================
 PATCH_SPECS=(
-  'telegram.ts|if (msg.document) {|1|__fixAFileList__|p1_body|const out|'
+  'telegram.ts|if (msg.document) {|1|__fixAFileList__|p1_body|__fixAFileList__ inbound n=|'
   'bot.ts|(globalThis as Record<string, unknown>).__excelPendingFile = file;|2|__excelPendingFiles|p2_body||'
-  'ws-sync-queue.ts|export async function flushPendingSync|1|__fixAMkdir__|p3_body||'
+  'ws-sync-queue.ts|export async function flushPendingSync|1|__fixAMkdir__|p3_body|return synced;'
 )
 
 p1_body() {
   cat <<'TS'
-			// [fixA/多文件] 一条 update 可能带多个文档（album/多附件）。逐个 getFile 下载收进
-			// __fixAFileList__，按序交给下游，不再只保留最后一个覆盖前一个。
+			// [fixA/多文件] 列表槽: 收齐本次 update 的全部 document(当前 TG 每 update 至多 1 个,
+			// 循环为 album/多附件预留); 单槽 file 保持原语义(最后一个), 下游 m.file 零改动。
+			// operator.p1 修正: worker 原版重写了锚点行却丢失原块结构 => 大括号不平衡 => bun 崩溃。
 			const __fixAFileList__: Array<{ data: string; fileName: string; mimeType: string }> = [];
 			if (msg.document) {
 				try {
@@ -106,15 +107,15 @@ p1_body() {
 						__fixAFileList__.push(file);
 						logger.info("[Telegram] document downloaded: " + file.fileName + " bytes=" + buf.length);
 					} else {
-						logger.warn("[Telegram] getFile failed: " + JSON.stringify(g).slice(0, 120));
+						logger.warn("[Telegram] getFile failed: " + JSON.stringify(g).slice(0,120));
 					}
 				} catch (e) {
-					logger.warn("[Telegram] document download fail: " + String(e).slice(0, 120));
+					logger.warn("[Telegram] document download fail: " + String(e).slice(0,120));
 				}
-			}
-			// 机械门 G3: N 进 N 出。收到几个附件就必须带出去几个, 少一个立刻告警, 不静默吞掉。
-			if (__fixAFileList__.length > 0) {
-				logger.info(`[Telegram] multi-file inbound n=${__fixAFileList__.length} names=${__fixAFileList__.map((f) => f.fileName).join(",")}`);
+				// 机械门 G3: N 进 N 出 —— 收到几个 document 就入列几个, 单附件时 n=1。
+				if (__fixAFileList__.length > 0) {
+					logger.info(`[Telegram] __fixAFileList__ inbound n=${__fixAFileList__.length} names=${__fixAFileList__.map((f) => f.fileName).join(",")}`);
+				}
 			}
 TS
 }
@@ -136,21 +137,36 @@ TS
 }
 
 p3_body() {
-  cat <<'TS'
-// [fixA/多文件] flush 前先建父目录(坑#14: 父目录不存在则首写失败, 文件静默丢失),
-// 且逐条目 flush 而不是只冲最后一个(单条目 = 多文件只同步一个)。
-export async function flushPendingSync(sid: string): Promise<void> {
-	// __fixAMkdir__: 队列里的每个相对路径都要保证父目录存在, 否则写入必失败。
-	const items = pends; // 现场变量名以 01-multi-file.sh 4.2 输出为准; 若不同则本补丁锚点门会失败
-	for (const it of items) {
-		const rel = typeof it === "string" ? it : (it?.path ?? "");
-		if (!rel) continue;
-		const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
-		if (dir) {
-			try { await sbx.exec(`mkdir -p /ws/${dir}`); } catch (e) { console.error(`[ws-sync] mkdir -p /ws/${dir} failed: ${String(e).slice(0, 120)}`); }
+  # operator 重写: 补丁体 = mkdir 头部 + 现场原函数体(逐行原样截取, 永不失配)。
+  # 原 worker 版把 115 行函数体硬编码进脚本, 转录不完整 => 大括号缺失 => 语法错。
+  local tgt="${WSQ_DIR:-/srv/wagate}/ws-sync-queue.ts"
+  local L0
+  L0=$(grep -nF "export async function flushPendingSync" "$tgt" | head -1 | cut -d: -f1)
+  [ -n "$L0" ] || { echo "!! p3: 现场找不到 flushPendingSync 定义" >&2; return 1; }
+  # 函数结束 = 定义行之后第一个缩进0的 } 行
+  local L1
+  L1=$(awk -v s="$L0" 'NR>s && /^\}/{print NR; exit}' "$tgt")
+  [ -n "$L1" ] || { echo "!! p3: 找不到函数结束行" >&2; return 1; }
+  {
+    cat <<'TSHEAD'
+// [fixA/多文件] flush 前先建父目录(坑#14: 父目录不存在则首写失败, 文件静默丢失)。
+export async function flushPendingSync(sid: string): Promise<number> {
+	// __fixAMkdir__: 队列里每个 wsPath 的父目录先建好, 否则沙箱内首写 > 目标目录会失败。
+	{
+		const __q = pendingSync.get(sid) || [];
+		for (const it of __q) {
+			const __ws = typeof it === "string" ? it : ((it && it.wsPath) || "");
+			if (!__ws) continue;
+			const __dir = __ws.includes("/") ? __ws.slice(0, __ws.lastIndexOf("/")) : "";
+			if (!__dir) continue;
+			const __target = __dir.startsWith("/") ? __dir : "/ws" + __dir;
+			try { await sbxBash(`mkdir -p ${__target}`, sid); } catch (e) { console.error(`[ws-sync] operator.apply_p3_ok mkdir -p ${__target} failed: ${String(e).slice(0, 120)}`); }
 		}
 	}
-TS
+	// ---- 以下为原函数体(逐行原样, 自原锚点行的下一行起) ----
+TSHEAD
+    sed -n "$((L0 + 1)),$((L1))p" "$tgt"
+  }
 }
 
 BACKUP_STAMP=$(date -u '+%Y%m%d-%H%M%S')
@@ -192,7 +208,11 @@ case "$MODE" in
     for spec in "${PATCH_SPECS[@]}"; do
       rel=$(spec_field "$spec" 1); anchor=$(spec_field "$spec" 2)
       exp=$(spec_field "$spec" 3); needl=$(spec_field "$spec" 4)
-      tgt="$PATCH_DIR/$rel"
+      if [ "$rel" = "ws-sync-queue.ts" ]; then
+        tgt="${WSQ_DIR:-/srv/wagate}/$rel"   # fixA path fix: file lives in wagate root, not patches/
+      else
+        tgt="$PATCH_DIR/$rel"
+      fi
       printf '\n--- %s ---\n' "$rel"
       if [ ! -f "$tgt" ]; then
         printf '  [FAIL] 文件不存在: %s\n' "$tgt"; FAIL_N=$((FAIL_N + 1)); continue
@@ -215,7 +235,11 @@ case "$MODE" in
     for spec in "${PATCH_SPECS[@]}"; do
       rel=$(spec_field "$spec" 1); anchor=$(spec_field "$spec" 2)
       exp=$(spec_field "$spec" 3); needl=$(spec_field "$spec" 4)
-      tgt="$PATCH_DIR/$rel"
+      if [ "$rel" = "ws-sync-queue.ts" ]; then
+        tgt="${WSQ_DIR:-/srv/wagate}/$rel"   # fixA path fix: file lives in wagate root, not patches/
+      else
+        tgt="$PATCH_DIR/$rel"
+      fi
       if [ ! -f "$tgt" ]; then
         gate_fail "apply 中止：$rel 不存在（$tgt）"
       fi
@@ -233,13 +257,36 @@ case "$MODE" in
       exp=$(spec_field "$spec" 3)
       bodyfn=$(spec_field "$spec" 5); needl=$(spec_field "$spec" 4)
       evid=$(spec_field "$spec" 6)
-      tgt="$PATCH_DIR/$rel"
+      if [ "$rel" = "ws-sync-queue.ts" ]; then
+        tgt="${WSQ_DIR:-/srv/wagate}/$rel"   # fixA path fix: file lives in wagate root, not patches/
+      else
+        tgt="$PATCH_DIR/$rel"
+      fi
       case " ${READY_RELS[*]} " in *" $rel "*) ;; *) continue ;; esac
       bak="$tgt.bak-$BACKUP_STAMP"
       cp -a "$tgt" "$bak" || gate_fail "apply 中止：备份失败 $bak"
       pass "已备份 $bak"
       tmp=$(mktemp) || gate_fail "apply 中止：mktemp 失败"
       body=$(mktemp) || gate_fail "apply 中止：mktemp 失败"
+      # operator 编译门 v2: 补丁体先过 bun 语法检查(宿主无 bun 时走容器内 bun), 不通过绝不写盘
+      if command -v bun >/dev/null 2>&1; then
+        if ! timeout 15 bun build --no-bundle "$body" >/dev/null 2>&1; then
+          rm -f "$tmp" "$body"
+          gate_fail "apply 中止：$rel 补丁体 bun 编译失败（语法不完整），未写盘。请人工核对 p*_body 函数"
+        fi
+        pass "编译门 $rel: 补丁体 bun 语法 OK"
+      elif "$DOCKER" exec "$CONTAINER" command -v bun >/dev/null 2>&1; then
+        "$DOCKER" cp "$body" "$CONTAINER":/tmp/__fixA_gate.ts >/dev/null 2>&1
+        if ! "$DOCKER" exec "$CONTAINER" timeout 20 bun build --no-bundle /tmp/__fixA_gate.ts >/dev/null 2>&1; then
+          "$DOCKER" exec "$CONTAINER" rm -f /tmp/__fixA_gate.ts >/dev/null 2>&1 || true
+          rm -f "$tmp" "$body"
+          gate_fail "apply 中止：$rel 补丁体 bun 编译失败（容器内检查），未写盘"
+        fi
+        "$DOCKER" exec "$CONTAINER" rm -f /tmp/__fixA_gate.ts >/dev/null 2>&1 || true
+        pass "编译门 $rel: 补丁体 bun 语法 OK（容器内）"
+      else
+        warn "编译门 $rel: 无 bun, 跳过"
+      fi
       "$bodyfn" > "$body"
       # 锚点行被补丁体整体「替换」（补丁体自己重写锚点行），不是插入到锚点行之前。
       # 用 switch 跳过原始锚点行及其原函数体，直到证据锚点出现（原函数体的结束行）。
