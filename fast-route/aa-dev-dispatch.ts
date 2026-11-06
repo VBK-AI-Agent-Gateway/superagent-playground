@@ -387,9 +387,17 @@ export default function aaDevDispatch(pi: { registerTool: (t: unknown) => void }
 		},
 		execute: async (args: { request?: string; context?: string; answers?: string }) => {
 			const sid = currentSid();
-			const request = (args?.request ?? "").trim();
+			let request = (args?.request ?? "").trim();
 			const context = (args?.context ?? "").trim();
 			const answers = (args?.answers ?? "").trim();
+			if (!request) {
+				// 空参自动补取：tenant-core 每轮暴露 __lastUserText（用户原话全文）
+				const last = typeof g.__lastUserText === "string" ? (g.__lastUserText as string).trim() : "";
+				if (last) {
+					request = last;
+					audit({ sid, action: "autofill", result: `request 取自 __lastUserText（${last.length} 字）` });
+				}
+			}
 
 			// 1) 总开关
 			if (dispatchDisabled()) {
@@ -413,6 +421,8 @@ export default function aaDevDispatch(pi: { registerTool: (t: unknown) => void }
 					true,
 				);
 			}
+			// 路由守卫联动：规划官已裁决 → 通知守卫放行本轮写操作（见 aa-dev-route-guard）
+			g[`__devRoute_${sid}`] = { called: true };
 
 			// 5) bounce：本地就能做
 			if (plan.action === "bounce") {
