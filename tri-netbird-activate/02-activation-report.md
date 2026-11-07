@@ -185,6 +185,21 @@ curl -sk -X POST https://127.0.0.1:8443/api/instance/setup \
 
 ---
 
+## 5.5 激活执行记录（2026-11-07，实测）
+
+| 步骤 | 结果 |
+|---|---|
+| 三容器健康（docker ps） | netbird-nginx / netbird-dashboard / netbird-server 均 Up |
+| `GET /api/instance` | `{"setup_required":false}` —— 沿用 2026-09-22 既有管理员，未重置 |
+| 登录页 `GET /` | HTTP 200 |
+| Dashboard 登录（既有账号，见 secrets） | 成功（内置 local IdP，/peers 正常加载） |
+| 新建 Setup Key | name=`employee-devices-2026-11`，type=reusable，expires=30 天（2026-12-07），usage limit=10 —— 明文仅登记于 `secrets/NETBIRD-ACCESS.md` |
+| 过期旧 key `dap202mdv81s73ap666g` | 已 Delete（防后人误用） |
+
+附加治理动作（TLS 层，仅 netbird-nginx，当前 0 个 peer 无任何影响）：`/opt/netbird-server/ssl/netbird.crt` 于 2026-11-07 重签为自签 CA 证书（同 key 未动、SAN=IP:5.189.129.216、CA:TRUE、notBefore 按 EU 时钟回拨 12h 防 Chrome 日期误报、notAfter 2036-11-03），`docker restart netbird-nginx` 后 8443 正常。历史版本留 `/opt/netbird-server/ssl/netbird.crt.bak.*`。接入方浏览器信任：将 `netbird-ca.crt` 导入本机受信任根。
+
+---
+
 ## 6. 接入配置核对
 
 ### 6.1 对外地址一致性（已核查，全部指向 `https://5.189.129.216:8443`）
